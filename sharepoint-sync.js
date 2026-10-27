@@ -41,16 +41,31 @@ async function token(){
   throw e;
  }
 }
-const url='https://graph.microsoft.com/v1.0/drives/'+encodeURIComponent(cfg.driveId)+'/root:/'+encodeURIComponent(cfg.snapshotFile)+':';
-async function graph(path,options={}){const t=await token();const res=await fetch(path,{...options,headers:{Authorization:'Bearer '+t,...options.headers}});if(!res.ok){let detail='';try{detail=(await res.text()).slice(0,250)}catch(e){}throw Error('Microsoft Graph '+res.status+': '+detail)}return res}
-async function meta(){try{const r=await graph(url);return await r.json()}catch(e){if(String(e.message).includes('Graph 404'))return null;throw e}}
+// Laufzeitpruefung der SharePoint-Bibliothek statt ungepruefter fester Drive-ID.
+let resolvedDriveId=null;
+async function resolveDrive(){
+ if(resolvedDriveId)return resolvedDriveId;
+ const site=encodeURIComponent(cfg.siteId);
+ const r=await graph('https://graph.microsoft.com/v1.0/sites/'+site+'/drives');
+ const data=await r.json();
+ const drives=(data.value||[]).filter(d=>d.driveType==='documentLibrary');
+ const chosen=drives.find(d=>d.id===cfg.driveId)||drives.find(d=>/^(documents|dokumente|shared documents)$/i.test(d.name||''))||(drives.length===1?drives[0]:null);
+ if(!chosen)throw Error('Keine eindeutige Dokumentbibliothek gefunden. Verfuegbar: '+drives.map(d=>d.name).join(', '));
+ resolvedDriveId=chosen.id;
+ // Root vor dem Dateizugriff separat pruefen, um Graph-400 gezielt zu diagnostizieren.
+ await graph('https://graph.microsoft.com/v1.0/drives/'+encodeURIComponent(resolvedDriveId)+'/root');
+ return resolvedDriveId;
+}
+async function fileUrl(){return 'https://graph.microsoft.com/v1.0/drives/'+encodeURIComponent(await resolveDrive())+'/root:/'+encodeURIComponent(cfg.snapshotFile)+':'}
+async function graph(path,options={}){const t=await token();const res=await fetch(path,{...options,headers:{Authorization:'Bearer '+t,...options.headers}});if(!res.ok){let detail='';try{detail=(await res.text()).slice(0,450)}catch(e){}throw Error('Microsoft Graph '+res.status+' bei '+new URL(path).pathname+': '+detail)}return res}
+async function meta(){const u=await fileUrl();try{const r=await graph(u);return await r.json()}catch(e){if(/Graph 404/.test(String(e.message)))return null;throw e}}
 const keys=['navolta-v1','navolta-detailed-time-v1'];
 function snapshot(){const values={};for(const k of keys)values[k]=localStorage.getItem(k);return {schema:'navolta-local-snapshot-v1',savedAt:new Date().toISOString(),values}}
 function valid(data){return data&&data.schema==='navolta-local-snapshot-v1'&&data.values&&typeof data.values==='object'&&keys.every(k=>data.values[k]===null||typeof data.values[k]==='string')}
 function downloadBackup(){const b=new Blob([JSON.stringify(snapshot(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='navolta-lokal-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-async function pull(){msg('Lese SharePoint ...');const m=await meta();if(!m)throw Error('Noch keine Synchronisierungsdatei in der bestehenden Bibliothek. Zuerst eine Sicherung hochladen.');const r=await graph(url+':/content');const data=await r.json();if(!valid(data))throw Error('Datei hat nicht das erwartete Navolta-Datenformat.');if(!confirm('ACHTUNG: SharePoint-Daten ersetzen die lokalen Projekt- und Zeiterfassungsdaten in diesem Browser. Vorher lokales Backup herunterladen? OK = fortfahren, Abbrechen = nichts ändern.')){msg('Abgebrochen');return}downloadBackup();for(const k of keys){if(data.values[k]===null)localStorage.removeItem(k);else localStorage.setItem(k,data.values[k])}remoteEtag=m.eTag;msg('Daten übernommen. Seite wird neu geladen.');location.reload()}
+async function pull(){msg('Lese SharePoint ...');const m=await meta();if(!m)throw Error('Noch keine Synchronisierungsdatei in der bestehenden Bibliothek. Zuerst eine Sicherung hochladen.');const r=await graph((await fileUrl())+'/content');const data=await r.json();if(!valid(data))throw Error('Datei hat nicht das erwartete Navolta-Datenformat.');if(!confirm('ACHTUNG: SharePoint-Daten ersetzen die lokalen Projekt- und Zeiterfassungsdaten in diesem Browser. Vorher lokales Backup herunterladen? OK = fortfahren, Abbrechen = nichts ändern.')){msg('Abgebrochen');return}downloadBackup();for(const k of keys){if(data.values[k]===null)localStorage.removeItem(k);else localStorage.setItem(k,data.values[k])}remoteEtag=m.eTag;msg('Daten übernommen. Seite wird neu geladen.');location.reload()}
 async function push(){msg('Prüfe SharePoint-Version ...');const m=await meta();if(m&&(!remoteEtag||m.eTag!==remoteEtag)){throw Error('Es existiert bereits eine SharePoint-Version, die in dieser Sitzung nicht geladen wurde oder inzwischen geändert wurde. Zuerst SharePoint laden und Änderungen abgleichen. Kein Überschreiben.')}if(!confirm('Lokalen Datenstand als zentrale SharePoint-Sicherung speichern? Andere Benutzer können ihre Änderungen verlieren, wenn sie später eine ältere Version hochladen.')){msg('Abgebrochen');return}
-const body=JSON.stringify(snapshot());const headers={'Content-Type':'application/json'};if(m)headers['If-Match']=m.eTag;else headers['If-None-Match']='*';const r=await graph(url+':/content',{method:'PUT',headers,body});const saved=await r.json();remoteEtag=saved.eTag||null;msg('SharePoint-Sicherung gespeichert: '+new Date().toLocaleString('de-CH'))}
+const body=JSON.stringify(snapshot());const headers={'Content-Type':'application/json'};if(m)headers['If-Match']=m.eTag;else headers['If-None-Match']='*';const r=await graph((await fileUrl())+'/content',{method:'PUT',headers,body});const saved=await r.json();remoteEtag=saved.eTag||null;msg('SharePoint-Sicherung gespeichert: '+new Date().toLocaleString('de-CH'))}
 async function run(fn){try{await fn()}catch(e){console.error(e);msg('Fehler: '+e.message)}}
 document.getElementById('nvsp-login').onclick=()=>run(async()=>{if(!await signIn())return;msg('Microsoft-Konto verbunden: '+(account?.username||''));const m=await meta();remoteEtag=m?.eTag||null;if(m)msg('Verbunden. SharePoint-Datei vorhanden. Vor dem Sichern zuerst laden.');else msg('Verbunden. Noch keine SharePoint-Sicherungsdatei.')});
 document.getElementById('nvsp-pull').onclick=()=>run(pull);

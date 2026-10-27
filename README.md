@@ -50,3 +50,12 @@ Dies ist eine **manuelle Synchronisierungs-/Backup-Vorstufe**, keine konfliktfre
 Die Microsoft-Anmeldung verwendet jetzt MSAL `loginRedirect` statt `loginPopup`. Nach der Weiterleitung zu Microsoft wird die Anwendung unter `https://simonerhard.github.io/Navolta-APP/` erneut geöffnet. Danach «Von SharePoint laden» oder «Nach SharePoint sichern» verwenden. Die URI muss unter Entra > Authentication als SPA eingetragen sein.
 
 Hinweis: Der lokale HTML-Login ist kein Zugriffsschutz für öffentliche GitHub-Dateien. SharePoint-Synchronisierung ist eine manuelle Gesamt-Snapshot-Sicherung ohne automatische Mehrbenutzer-Zusammenführung.
+
+
+## Graph-400 Diagnosekorrektur
+Die App ermittelt jetzt die Dokumentbibliothek direkt ueber Microsoft Graph (`/sites/{siteId}/drives`) und prueft deren Root vor dem Dateizugriff. Falls Microsoft Graph weiterhin einen Fehler liefert, zeigt die App den konkreten API-Pfad an. Die Bibliothek wird nicht veraendert, solange kein Speichern ausgeloest wird.
+
+**Wichtig:** Diese Korrektur wurde statisch geprueft, nicht mit einem echten Microsoft-365-Benutzertoken getestet.
+
+## Fix v2 (27.10.2026)
+Korrigiert den Microsoft-Graph-Dateiinhaltspfad: `/root:/datei:/content` statt `/root:/datei::/content`. Die bestehende Bibliothek wird nicht veraendert. Bitte vor dem ersten Upload lokale Daten sichern.
