@@ -9,14 +9,37 @@ const msg=(s)=>{status.textContent=s};
 const buttons=root.querySelectorAll('button');buttons.forEach(b=>b.style.cssText='background:#14568c;color:white;border:0;border-radius:5px;padding:7px;cursor:pointer');
 let client=null,account=null,remoteEtag=null;
 const configured=cfg&&/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(cfg.clientId)&&/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(cfg.tenantId);
+// Redirect statt Popup: vermeidet block_nested_popups in eingebetteten Browsern.
+const SCOPES=['User.Read','Files.ReadWrite.All','Sites.ReadWrite.All'];
+let readyPromise=null;
 async function init(){
  if(!configured)throw Error('Microsoft Entra Client-ID und Tenant-ID in sharepoint-config.js eintragen.');
  if(!window.msal)throw Error('Microsoft-Anmeldebibliothek nicht geladen. Internetverbindung prüfen.');
- if(!client){client=new msal.PublicClientApplication({auth:{clientId:cfg.clientId,authority:'https://login.microsoftonline.com/'+cfg.tenantId,redirectUri:'https://simonerhard.github.io/Navolta-APP/'},cache:{cacheLocation:'sessionStorage'}});await client.initialize();account=client.getAllAccounts()[0]||null}
- return client;
+ if(!readyPromise){readyPromise=(async()=>{
+  client=new msal.PublicClientApplication({auth:{clientId:cfg.clientId,authority:'https://login.microsoftonline.com/'+cfg.tenantId,redirectUri:'https://simonerhard.github.io/Navolta-APP/',navigateToLoginRequestUrl:false},cache:{cacheLocation:'sessionStorage'}});
+  await client.initialize();
+  const result=await client.handleRedirectPromise();
+  account=result?.account||client.getAllAccounts()[0]||null;
+  if(account)client.setActiveAccount(account);
+ })().catch(e=>{readyPromise=null;throw e})}
+ await readyPromise;return client;
 }
-async function token(){await init();if(!account){const r=await client.loginPopup({scopes:['User.Read','Files.ReadWrite.All','Sites.ReadWrite.All']});account=r.account}
- try{return (await client.acquireTokenSilent({scopes:['Files.ReadWrite.All','Sites.ReadWrite.All'],account})).accessToken}catch(e){return (await client.acquireTokenPopup({scopes:['Files.ReadWrite.All','Sites.ReadWrite.All'],account})).accessToken}
+async function signIn(){
+ await init();
+ if(!account){msg('Microsoft-Anmeldung wird geöffnet ...');await client.loginRedirect({scopes:SCOPES});return false}
+ return true;
+}
+async function token(){
+ await init();
+ if(!account){msg('Bitte zuerst auf «Microsoft anmelden» klicken.');throw Error('Microsoft-Anmeldung erforderlich.');}
+ try{return (await client.acquireTokenSilent({scopes:SCOPES,account})).accessToken}
+ catch(e){
+  if(e instanceof msal.InteractionRequiredAuthError || /interaction_required|consent_required|login_required/i.test(e.errorCode||'')){
+   msg('Microsoft-Berechtigung wird angefordert ...');await client.acquireTokenRedirect({scopes:SCOPES,account});
+   throw Error('Weiterleitung zu Microsoft gestartet. Nach der Rückkehr bitte die Aktion erneut ausführen.');
+  }
+  throw e;
+ }
 }
 const url='https://graph.microsoft.com/v1.0/drives/'+encodeURIComponent(cfg.driveId)+'/root:/'+encodeURIComponent(cfg.snapshotFile)+':';
 async function graph(path,options={}){const t=await token();const res=await fetch(path,{...options,headers:{Authorization:'Bearer '+t,...options.headers}});if(!res.ok){let detail='';try{detail=(await res.text()).slice(0,250)}catch(e){}throw Error('Microsoft Graph '+res.status+': '+detail)}return res}
@@ -29,8 +52,8 @@ async function pull(){msg('Lese SharePoint ...');const m=await meta();if(!m)thro
 async function push(){msg('Prüfe SharePoint-Version ...');const m=await meta();if(m&&(!remoteEtag||m.eTag!==remoteEtag)){throw Error('Es existiert bereits eine SharePoint-Version, die in dieser Sitzung nicht geladen wurde oder inzwischen geändert wurde. Zuerst SharePoint laden und Änderungen abgleichen. Kein Überschreiben.')}if(!confirm('Lokalen Datenstand als zentrale SharePoint-Sicherung speichern? Andere Benutzer können ihre Änderungen verlieren, wenn sie später eine ältere Version hochladen.')){msg('Abgebrochen');return}
 const body=JSON.stringify(snapshot());const headers={'Content-Type':'application/json'};if(m)headers['If-Match']=m.eTag;else headers['If-None-Match']='*';const r=await graph(url+':/content',{method:'PUT',headers,body});const saved=await r.json();remoteEtag=saved.eTag||null;msg('SharePoint-Sicherung gespeichert: '+new Date().toLocaleString('de-CH'))}
 async function run(fn){try{await fn()}catch(e){console.error(e);msg('Fehler: '+e.message)}}
-document.getElementById('nvsp-login').onclick=()=>run(async()=>{await token();msg('Microsoft-Konto verbunden: '+(account?.username||''));const m=await meta();remoteEtag=m?.eTag||null;if(m)msg('Verbunden. SharePoint-Datei vorhanden. Vor dem Sichern zuerst laden.');else msg('Verbunden. Noch keine SharePoint-Sicherungsdatei.')});
+document.getElementById('nvsp-login').onclick=()=>run(async()=>{if(!await signIn())return;msg('Microsoft-Konto verbunden: '+(account?.username||''));const m=await meta();remoteEtag=m?.eTag||null;if(m)msg('Verbunden. SharePoint-Datei vorhanden. Vor dem Sichern zuerst laden.');else msg('Verbunden. Noch keine SharePoint-Sicherungsdatei.')});
 document.getElementById('nvsp-pull').onclick=()=>run(pull);
 document.getElementById('nvsp-push').onclick=()=>run(push);
-if(!configured)msg('Einrichtung erforderlich: Entra-App-ID eintragen');
+if(!configured)msg('Einrichtung erforderlich: Entra-App-ID eintragen');else init().then(()=>{if(account)msg('Microsoft-Konto erkannt: '+account.username+'. Du kannst SharePoint laden oder sichern.');}).catch(e=>msg('Fehler bei Microsoft-Anmeldung: '+e.message));
 })();

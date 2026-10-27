@@ -44,3 +44,9 @@ Dies ist eine **manuelle Synchronisierungs-/Backup-Vorstufe**, keine konfliktfre
 - Delegierte Graph-Berechtigungen User.Read, Files.ReadWrite.All und Sites.ReadWrite.All laut Screenshot genehmigt.
 - Live-Anmeldung und Dateisynchronisierung sind **noch nicht getestet**. Die erste Sicherung nur mit Testdaten durchführen.
 - Die lokale Passwortmaske ist kein wirksamer Schutz für vertrauliche Daten. Keine sensiblen Daten auf einer öffentlich zugänglichen GitHub-Pages-Anwendung ohne wirksame Zugriffskontrolle verwenden.
+
+
+## Korrektur: block_nested_popups
+Die Microsoft-Anmeldung verwendet jetzt MSAL `loginRedirect` statt `loginPopup`. Nach der Weiterleitung zu Microsoft wird die Anwendung unter `https://simonerhard.github.io/Navolta-APP/` erneut geöffnet. Danach «Von SharePoint laden» oder «Nach SharePoint sichern» verwenden. Die URI muss unter Entra > Authentication als SPA eingetragen sein.
+
+Hinweis: Der lokale HTML-Login ist kein Zugriffsschutz für öffentliche GitHub-Dateien. SharePoint-Synchronisierung ist eine manuelle Gesamt-Snapshot-Sicherung ohne automatische Mehrbenutzer-Zusammenführung.
