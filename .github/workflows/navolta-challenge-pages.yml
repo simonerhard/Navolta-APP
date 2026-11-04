@@ -1,0 +1,35 @@
+name: NAVOLTA Challenge Pages
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'navolta-projektleiter-challenge/**'
+      - '.github/workflows/navolta-challenge-pages.yml'
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: navolta-challenge-pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare site
+        run: |
+          mkdir -p _site/navolta-projektleiter-challenge
+          cp -R navolta-projektleiter-challenge/. _site/navolta-projektleiter-challenge/
+          test -f _site/navolta-projektleiter-challenge/index.html
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
