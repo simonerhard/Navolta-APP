@@ -1,8 +1,9 @@
-# NAVOLTA Projektleiter Challenge
+# NAVOLTA Projektleiter Challenge 4.7
 
-Separater Projektordner für die NAVOLTA Projektleiter Challenge 4.7.
+Browser-Spiel mit 20 Levels, Messlabor, Karrierefortsetzung und Paket-Startanimation.
 
-Status: Die vollständige Spielversion mit Paket-Startanimation liegt derzeit als ZIP-Datei in der ChatGPT-Konversation vor. Die ausführbaren Spieldateien (`index.html`, `assets/navolta-logo-banner.png`) müssen noch in diesen Ordner übertragen werden, bevor das Spiel über GitHub Pages gestartet werden kann.
+**Start:** Öffne `index.html` im Browser oder nach erfolgreicher Aktivierung von GitHub Pages die Projekt-URL.
 
-## Startanimation
-Beim Öffnen der App zieht man die goldene Schleife am Paket nach rechts. Danach öffnet sich das Spielmenü mit den Optionen zur Fortsetzung der Karriere.
+**Hinweis:** Die GitHub-Version enthält ein leichtgewichtiges SVG-Banner als Ersatz für die grosse Original-PNG-Datei. Die lokal herunterladbare ZIP enthält das Originalbanner.
+
+**GitHub Pages:** Unter Repository `Settings → Pages` die Quelle `GitHub Actions` aktivieren. Der Workflow `.github/workflows/navolta-challenge-pages.yml` veröffentlicht den Projektordner. Die Bereitstellung ist erst nach einem erfolgreichen Workflow-Lauf bestätigt.
