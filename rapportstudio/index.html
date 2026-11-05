@@ -1,0 +1,18 @@
+<!doctype html><html lang="de-CH"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rapportstudio · Navolta AG</title><meta name="description" content="Regierapporte erstellen, einscannen und abrechnen.">
+<link rel="stylesheet" href="./style.css"><script defer src="./vendor/pdf-lib.min.js"></script><script defer src="./vendor/tesseract.min.js"></script><script type="module" src="./app.js"></script></head>
+<body><div class="shell">
+<aside class="sidebar"><div class="brand"><img src="./logo.png" alt="Navolta AG"><div>RAPPORTSTUDIO</div></div>
+<nav aria-label="Navigation"><span class="nav-label">ARBEITSBEREICH</span>
+<button data-nav="dashboard"><b>▦</b> Übersicht</button><button data-nav="editor"><b>▤</b> Rapporteditor</button><button data-nav="people"><b>♙</b> Mitarbeitende</button><button data-nav="files"><b>▱</b> Dokumente</button><button data-nav="guide"><b>ⓘ</b> Anleitung</button></nav>
+<div class="side-bottom"><span class="local-dot"></span><div><strong>Lokaler Arbeitsbereich</strong><small>Daten in diesem Browser</small></div></div></aside>
+<main><header class="top"><span>NAVOLTA AG <span class="slash">/</span> <strong id="crumb">Übersicht</strong></span><button data-action="import" class="button secondary">↑ Rapport importieren</button></header>
+<div id="content"></div><footer>Navolta AG <span>Regierapporte · CHF</span></footer></main>
+</div>
+<input id="import-file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" hidden>
+<input id="camera-file" type="file" accept="image/*" capture="environment" hidden>
+<input id="doc-file" type="file" hidden>
+<input id="restore-file" type="file" accept=".json,application/json" hidden>
+<div id="toast" role="status" aria-live="polite"></div>
+<dialog id="preview"><div class="dialog-head"><strong id="preview-label">PDF-Vorschau</strong><button class="button secondary" data-action="close-preview">Schliessen</button></div><iframe title="PDF-Original oder Vorschau"></iframe></dialog>
+</body></html>

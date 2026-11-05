@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'navolta-projektleiter-challenge/**'
+      - 'rapportstudio/**'
       - '.github/workflows/navolta-challenge-pages.yml'
 permissions:
   contents: read
@@ -26,6 +27,9 @@ jobs:
           mkdir -p _site/navolta-projektleiter-challenge
           cp -R navolta-projektleiter-challenge/. _site/navolta-projektleiter-challenge/
           test -f _site/navolta-projektleiter-challenge/index.html
+          mkdir -p _site/rapportstudio
+          cp -R rapportstudio/. _site/rapportstudio/
+          test -f _site/rapportstudio/index.html
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
