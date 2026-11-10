@@ -71,6 +71,3 @@ Korrigiert den Microsoft-Graph-Dateiinhaltspfad: `/root:/datei:/content` statt `
 - Auftragsbestätigungen werden unter `navolta-order-confirmations-v1` im lokalen Browser gespeichert und sind **neu auch im SharePoint-Snapshot** enthalten. Keine automatische Live-Synchronisation oder Konfliktzusammenführung.
 - Keine Dateien wurden auf SharePoint hochgeladen; Speicherung erfolgt erst durch Klick auf „Nach SharePoint sichern“.
 - PDF-Ausgabe orientiert sich am Inhalt und Aufbau der hochgeladenen Vorlage, ist aber **keine pixelgenaue 1:1-Kopie**.
-
-## Reparaturversion
-Auftragsbestätigungsmodul wird einmalig über index.html eingebunden. Button rechts, Formular und lokale Speicherung. Kein automatischer SharePoint-Upload. Falls ein Fehler auftritt, bitte genaue Fehlermeldung und Browserkonsole mitteilen.

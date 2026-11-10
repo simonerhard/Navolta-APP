@@ -19,6 +19,54 @@ el('extract').onclick=async()=>{el('scan-status').textContent='PDF wird eingeles
 if(offer){o.offer=match(offer,/Dokument-Nr\.?:\s*(\d{6,})/i)||match(offer,/Angebot\s+(\d{6,})/i);o.project=match(offer,/Projekt-Nr\.?:\s*(\d{6,})/i);if(!o.description)o.description=match(offer,/Projekt:\s*([^\n]+)/i)||'Unterstützung Netzbetreiberaufgaben';}
 if(old){o.po=o.po||match(old,/(4800\d{6})/);o.project=o.project||match(old,/Auftragsnummer\s*\/\s*Projekt:\s*(\d+)/i)}
 fill(o);const warnings=[];if(po&&offer){const p=match(po,/Projektstunden:\s*(\d+)/i),a=match(offer,/Auftragsumfang:\s*(\d+)/i);if(p&&a&&p!==a)warnings.push(`Stundenumfang unterschiedlich: Bestellung ${p} h, Angebot ${a} h.`);const ordered=match(po,/Gesamtwert\s+([\d',.]+)/i),quoted=match(offer,/Summe exkl\.\s*MWST\s+([\d',.]+)/i);if(ordered&&quoted&&num(ordered)!==num(quoted))warnings.push(`Beträge unterscheiden sich: Bestellung CHF ${ordered}, Angebot CHF ${quoted}. Die Bestellwerte wurden übernommen.`)}el('warning').hidden=!warnings.length;el('warning').textContent=warnings.join(' ');el('scan-status').textContent='Einlesen abgeschlossen. Bitte sämtliche Werte und Abweichungen prüfen.';}catch(e){el('scan-status').textContent='Einlesen nicht möglich: '+e.message}};
-el('print').onclick=()=>{if(!val('po')){alert('Bitte Bestellnummer eintragen.');return}const x=values(),c=calc();const row=(a,b)=>`<tr><th>${esc(a)}</th><td>${esc(b)}</td></tr>`;const html=`<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Auftragsbestätigung ${esc(x.po)}</title><style>@page{size:A4;margin:18mm}body{font:12px Arial;color:#1c2b3a}header{display:flex;justify-content:space-between;align-items:start;border-bottom:2px solid #18669e;padding-bottom:12px}header img{width:185px}h1{font-size:23px;color:#154e7b;margin:28px 0 20px}table{width:100%;border-collapse:collapse}th,td{padding:8px 5px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top}th{width:42%;color:#475569}.text{white-space:pre-wrap;line-height:1.6}.sign{margin-top:60px}footer{position:fixed;bottom:0;color:#64748b;font-size:10px}</style></head><body><header><div>Navolta AG<br>Fiechtenweg 4<br>4147 Aesch BL<br>info@navolta.ch</div><img src="${new URL('navolta-logo.png',location.href).href}"></header><p>${esc(x.client)}<br>${esc(x.address)}</p><h1>Auftragsbestätigung</h1><p>Aesch, ${esc(x.date)}</p><p>Sehr geehrte Damen und Herren</p><p>Herzlichen Dank für die Auftragserteilung und Ihr Vertrauen. Wir bestätigen den Auftrag gemäss Ihrer Bestellung und den nachstehenden Konditionen.</p><table>${row('Ihre Bestellnummer',x.po)}${row('Auftrag / Projekt',x.project)}${row('Unser Angebot',x.offer)}${row('Kundenkontakt',x.contact)}${row('Zuständiger Projektleiter',x.manager)}${row('Leistungs-/Lieferdatum',x.delivery||'Nach Vereinbarung')}${row('Zahlungsbedingungen',x.payment)}${row('Bruttopreis exkl. MwSt.',`CHF ${money(x.net)}`)}${row('Rabatt',`CHF ${money(x.discount)}`)}${row('MwSt. (${x.vat} %)',`CHF ${money(c.tax)}`)}${row('Gesamtbetrag inkl. MwSt.',`CHF ${money(c.total)}`)}</table><h3>Leistungsumfang</h3><div class="text">${esc(x.description)}</div>${x.notes?`<h3>Bemerkungen</h3><div class="text">${esc(x.notes)}</div>`:''}<div class="sign">Freundliche Grüsse<br><b>Navolta AG</b><br>Geschäftsleitung / Projektleitung</div><footer>Auftragsbestätigung Navolta AG · Bestellung ${esc(x.po)} · Seite 1</footer></body></html>`;const w=window.open('','_blank');if(!w){alert('Pop-up für Druckvorschau zulassen.');return}w.document.open();w.document.write(html);w.document.close();w.focus();setTimeout(()=>{w.focus();w.print()},900)};
+el('print').onclick=()=>{
+if(!val('po').trim()){alert('Bitte Bestellnummer eintragen.');return}
+const x=values(),c=calc(),date=x.date?x.date.split('-').reverse().join('.'):'',net=+x.net||0,disc=+x.discount||0;
+const amt=v=>money(v),h=esc,logo=new URL('navolta-logo.png',location.href).href;
+const recipient=(x.contact||'').trim();
+const salutation=recipient?('Guten Tag '+recipient):'Sehr geehrte Damen und Herren';
+const projectDesc=(x.description||'').trim();
+const html=`<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Auftragsbestätigung ${h(x.po)}</title><style>
+@page{size:A4;margin:0}*{box-sizing:border-box}
+body{font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#101010;margin:0}
+.sheet{width:210mm;height:297mm;position:relative;margin:auto;background:#fff;overflow:hidden}
+.corner{position:absolute;right:0;top:0;width:23mm;height:21mm;background:linear-gradient(35deg,transparent 45%,#0a70b3 46% 61%,#c2c6ca 62% 73%,#0a70b3 74%);clip-path:polygon(20% 0,100% 0,100% 100%,70% 100%)}
+.logo{position:absolute;top:13mm;right:18mm;width:85mm;height:26mm;object-fit:contain}
+.addr{position:absolute;left:25mm;top:18mm;line-height:1.25}
+.meta{position:absolute;left:25mm;right:18mm;top:46mm;display:grid;grid-template-columns:28% 19% 30% 23%;gap:0;font-size:9.2px}
+.meta .m{padding-right:8px;overflow-wrap:anywhere}.meta strong{display:block;font-size:9.4px}
+.title{position:absolute;top:89mm;left:25mm;font-size:12px;font-weight:bold}
+.intro{position:absolute;top:99mm;left:25mm;right:17mm;font-size:9.7px;line-height:1.36}
+.row{position:absolute;left:25mm;right:18mm;display:grid;grid-template-columns:28% 46% 26%;align-items:start;font-size:9.5px;min-height:5mm}
+.row strong{font-weight:700}.right{text-align:right;white-space:nowrap}
+.terms{top:116mm}.amount1{top:128mm}.amount2{top:136mm}.amount3{top:143mm}.amount4{top:150mm}.amount5{top:157mm}
+.pay{top:171mm}.po{top:179mm}.manager{top:187mm}.contact{top:195mm}
+.signature{position:absolute;left:25mm;top:218mm;line-height:1.25;font-size:9.5px}
+.signature .line{margin-top:15mm;border-bottom:1px solid #222;width:47mm}
+.footer{position:absolute;left:25mm;right:18mm;bottom:14mm;display:flex;justify-content:space-between;font-size:9px}
+@media screen{body{background:#d7dce2;padding:20px}.sheet{box-shadow:0 4px 22px #0003}}
+@media print{body{padding:0}.sheet{box-shadow:none;break-after:page}}
+</style></head><body><div class="sheet"><div class="corner"></div>
+<img class="logo" src="${logo}" alt="Navolta AG">
+<div class="addr">${h(x.client||'Bachem AG')}<div style="white-space:pre-line">${h(x.address||'')}</div></div>
+<div class="meta"><div class="m"><strong>Ihre Referenz</strong>${h(x.contact)}</div><div class="m"><strong>Unsere Referenz</strong>${h(x.manager)}</div><div class="m"><strong>Auftragsnummer/Projekt</strong>${h(x.project)}<br><strong>Projektnummer des Kunden</strong>${h(x.po)}<div style="white-space:pre-line;margin-top:2px">${h(projectDesc)}</div></div><div class="m"><strong>Ort und Datum</strong>Aesch,<br>${h(date)}</div></div>
+<div class="title">Auftragsbestätigung</div>
+<div class="intro">${h(salutation)}<br>Herzlichen Dank für die Auftragserteilung und Ihr Vertrauen! Wir bestätigen den Erhalt des Auftrags gemäss beigefügtem Angebot sowie den vereinbarten Konditionen und werden die Arbeiten entsprechend ausführen.</div>
+<div class="row terms"><strong>Dienstleistungen</strong><strong>Ihre Bestellnummer:</strong><strong class="right">${h(x.po)}</strong></div>
+<div class="row amount1"><strong>Vereinbarte Konditionen</strong><strong>Bruttopreis exkl. MwSt.</strong><strong class="right">CHF&nbsp;&nbsp; ${amt(net)}</strong></div>
+<div class="row amount2"><span></span><span>Rabatt</span><span class="right">CHF&nbsp;&nbsp; ${amt(disc)}</span></div>
+<div class="row amount3"><span></span><span>Objektrabatt</span><span class="right">CHF&nbsp;&nbsp; 0.00</span></div>
+<div class="row amount4"><span></span><span>Mehrwertsteuer (${h(x.vat)} %)</span><span class="right">CHF&nbsp;&nbsp; ${amt(c.tax)}</span></div>
+<div class="row amount5"><span></span><strong>Nettopreis inkl. MwSt.</strong><strong class="right">CHF&nbsp;&nbsp; ${amt(c.base+c.tax)}</strong></div>
+<div class="row pay"><strong>Zahlungsbedingungen</strong><strong>${h(x.payment)}</strong></div>
+<div class="row po"><strong>Bestellung</strong><strong>${h(x.po)}</strong></div>
+<div class="row manager"><strong>Zuständiger Projektleiter</strong><span>Hr. ${h(x.manager)}</span></div>
+<div class="row contact"><strong>Kontaktperson des Kunden</strong><span>${h(x.contact)}</span></div>
+<div class="signature">Unterschriften:<br><br><strong>Navolta AG</strong><br>Geschäftsleitung / Verwaltungsrat<br>P. Blum / S. Erhard<div class="line"></div></div>
+<div class="footer"><span>Auftragsbestätigung Navolta AG</span><span>Seite 1/1</span></div>
+</div></body></html>`;
+const w=window.open('','_blank');if(!w){alert('Bitte Pop-ups für die Druckvorschau zulassen.');return}
+w.document.open();w.document.write(html);w.document.close();setTimeout(()=>{w.focus();w.print()},850);
+};
 fresh();const sp=()=>{const box=document.getElementById('navolta-sharepoint-sync');if(!box||document.getElementById('nv-sp-toggle'))return false;box.classList.add('nv-collapsed');const b=document.createElement('button');b.id='nv-sp-toggle';b.title='SharePoint-Synchronisierung öffnen';b.textContent='☁ SharePoint';document.body.appendChild(b);b.onclick=()=>{box.classList.toggle('nv-collapsed');b.textContent=box.classList.contains('nv-collapsed')?'☁ SharePoint':'✕ Schliessen'};return true};if(!sp()){const observer=new MutationObserver(()=>{if(sp())observer.disconnect()});observer.observe(document.body,{childList:true,subtree:true})}
 })();
