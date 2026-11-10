@@ -30,7 +30,7 @@ const html=`<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Au
 @page{size:A4;margin:0}*{box-sizing:border-box}
 body{font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#101010;margin:0}
 .sheet{width:210mm;height:297mm;position:relative;margin:auto;background:#fff;overflow:hidden}
-.corner{position:absolute;right:0;top:0;width:23mm;height:21mm;background:linear-gradient(35deg,transparent 45%,#0a70b3 46% 61%,#c2c6ca 62% 73%,#0a70b3 74%);clip-path:polygon(20% 0,100% 0,100% 100%,70% 100%)}
+.corner{position:absolute;right:0;top:0;width:23mm;height:21mm;overflow:hidden}.corner svg{display:block;width:100%;height:100%}
 .logo{position:absolute;top:13mm;right:18mm;width:85mm;height:26mm;object-fit:contain}
 .addr{position:absolute;left:25mm;top:18mm;line-height:1.25}
 .meta{position:absolute;left:25mm;right:18mm;top:46mm;display:grid;grid-template-columns:28% 19% 30% 23%;gap:0;font-size:9.2px}
@@ -46,7 +46,7 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#101010;margin:
 .footer{position:absolute;left:25mm;right:18mm;bottom:14mm;display:flex;justify-content:space-between;font-size:9px}
 @media screen{body{background:#d7dce2;padding:20px}.sheet{box-shadow:0 4px 22px #0003}}
 @media print{body{padding:0}.sheet{box-shadow:none;break-after:page}}
-</style></head><body><div class="sheet"><div class="corner"></div>
+</style></head><body><div class="sheet"><div class="corner"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 92 84" preserveAspectRatio="none" aria-hidden="true"><path d="M0 0H22V44L0 27Z" fill="#0879ba"/><path d="M28 0H49V49L28 34Z" fill="#a3a5a6"/><path d="M57 0H92V84L70 69V0Z" fill="#0879ba"/></svg></div>
 <img class="logo" src="${logo}" alt="Navolta AG">
 <div class="addr">${h(x.client||'Bachem AG')}<div style="white-space:pre-line">${h(x.address||'')}</div></div>
 <div class="meta"><div class="m"><strong>Ihre Referenz</strong>${h(x.contact)}</div><div class="m"><strong>Unsere Referenz</strong>${h(x.manager)}</div><div class="m"><strong>Auftragsnummer/Projekt</strong>${h(x.project)}<br><strong>Projektnummer des Kunden</strong>${h(x.po)}<div style="white-space:pre-line;margin-top:2px">${h(projectDesc)}</div></div><div class="m"><strong>Ort und Datum</strong>Aesch,<br>${h(date)}</div></div>
