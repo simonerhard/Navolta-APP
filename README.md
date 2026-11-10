@@ -59,3 +59,15 @@ Die App ermittelt jetzt die Dokumentbibliothek direkt ueber Microsoft Graph (`/s
 
 ## Fix v2 (27.10.2026)
 Korrigiert den Microsoft-Graph-Dateiinhaltspfad: `/root:/datei:/content` statt `/root:/datei::/content`. Die bestehende Bibliothek wird nicht veraendert. Bitte vor dem ersten Upload lokale Daten sichern.
+
+## NEU: Auftragsbestätigungen
+- Rechts am Bildschirm auf **Auftragsbestätigungen** klicken.
+- Bestellung, Angebot und/oder bisherige Auftragsbestätigung als PDF auswählen und auf **PDFs analysieren** klicken.
+- Textbasierte PDFs werden mit PDF.js im Browser eingelesen (Internetverbindung erforderlich). Für reine Bildscans ohne Textschicht gibt es **keine OCR**; bitte Werte manuell ergänzen.
+- Die Felder kontrollieren, insbesondere Abweichungen zwischen Bestellung und Angebot. Beispiel: Bestellung 4800038844 enthält 344 h und CHF 49'880.00, Angebot 2600231 enthält 968 h und CHF 140'360.00. Es werden keine unterschiedlichen Auftragsumfänge stillschweigend gleichgesetzt.
+- Bestehende Bestätigung kopieren, neue manuell erstellen, lokal speichern, JSON exportieren oder über den Browserdruck als PDF speichern.
+- Logo wird im Drucklayout oben rechts angezeigt.
+- Rechts unten ist die bisher grosse SharePoint-Anzeige jetzt auf einen kleinen Button reduzierbar.
+- Auftragsbestätigungen werden unter `navolta-order-confirmations-v1` im lokalen Browser gespeichert und sind **neu auch im SharePoint-Snapshot** enthalten. Keine automatische Live-Synchronisation oder Konfliktzusammenführung.
+- Keine Dateien wurden auf SharePoint hochgeladen; Speicherung erfolgt erst durch Klick auf „Nach SharePoint sichern“.
+- PDF-Ausgabe orientiert sich am Inhalt und Aufbau der hochgeladenen Vorlage, ist aber **keine pixelgenaue 1:1-Kopie**.

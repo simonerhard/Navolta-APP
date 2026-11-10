@@ -59,7 +59,7 @@ async function resolveDrive(){
 async function fileUrl(){return 'https://graph.microsoft.com/v1.0/drives/'+encodeURIComponent(await resolveDrive())+'/root:/'+encodeURIComponent(cfg.snapshotFile)+':'}
 async function graph(path,options={}){const t=await token();const res=await fetch(path,{...options,headers:{Authorization:'Bearer '+t,...options.headers}});if(!res.ok){let detail='';try{detail=(await res.text()).slice(0,450)}catch(e){}throw Error('Microsoft Graph '+res.status+' bei '+new URL(path).pathname+': '+detail)}return res}
 async function meta(){const u=await fileUrl();try{const r=await graph(u);return await r.json()}catch(e){if(/Graph 404/.test(String(e.message)))return null;throw e}}
-const keys=['navolta-v1','navolta-detailed-time-v1'];
+const keys=['navolta-v1','navolta-detailed-time-v1','navolta-order-confirmations-v1'];
 function snapshot(){const values={};for(const k of keys)values[k]=localStorage.getItem(k);return {schema:'navolta-local-snapshot-v1',savedAt:new Date().toISOString(),values}}
 function valid(data){return data&&data.schema==='navolta-local-snapshot-v1'&&data.values&&typeof data.values==='object'&&keys.every(k=>data.values[k]===null||typeof data.values[k]==='string')}
 function downloadBackup(){const b=new Blob([JSON.stringify(snapshot(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='navolta-lokal-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
