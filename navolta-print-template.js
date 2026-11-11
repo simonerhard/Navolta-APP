@@ -8,21 +8,69 @@ const svg=(path)=>'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" s
 const header='<div class="nv-letter-header"><img src="'+logo+'" alt="Navolta AG"></div>';
 const footer='<div class="nv-letter-footer"><span>'+svg('<path d="M5 4h3l2 5-2 2c1 2 3 4 5 5l2-2 5 2v3c-8 2-17-7-17-15z"/>')+' +41 61 751 75 55</span><span>'+svg('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c-5 5-5 13 0 18m0-18c5 5 5 13 0 18"/>')+' navolta.ch</span><span>'+svg('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/>')+' info@navolta.ch</span><span>'+svg('<path d="M12 21s7-6 7-12a7 7 0 1 0-14 0c0 6 7 12 7 12z"/><circle cx="12" cy="9" r="2"/>')+' Fiechtenweg 4, 4147 Aesch BL, Schweiz</span></div>';
 function css(landscape){
-return '@page{size:A4'+(landscape?' landscape':'')+';margin:'+(landscape?'35mm 12mm 19mm 16mm':'37mm 14mm 19mm 19mm')+'}'+
-'html,body{font-family:Arial,Helvetica,sans-serif!important;color:#111!important}body{font-size:12pt!important;line-height:1.35!important;margin:0!important}'+
-'h1{font:700 16pt Arial,Helvetica,sans-serif!important;color:#111!important;margin:0 0 14pt!important}h2{font:700 14pt Arial,Helvetica,sans-serif!important;color:#111!important;margin:12pt 0 8pt!important}h3{font:700 12pt Arial,Helvetica,sans-serif!important}p,li{font:12pt/1.35 Arial,Helvetica,sans-serif!important}'+
-'table{width:100%;border-collapse:collapse;font:9pt Arial,sans-serif;margin:12pt 0}tr{break-inside:avoid;page-break-inside:avoid}thead{display:table-header-group}th,td{font-family:Arial,sans-serif;padding:5pt 4pt;border-bottom:1px solid #d3dfe8;text-align:left;vertical-align:top;overflow-wrap:normal;word-break:normal}tbody tr:nth-child(even){background:#f8fbfd}table.nv-wide{table-layout:fixed!important;font-size:7.2pt!important}table.nv-wide th,table.nv-wide td{font-size:7.2pt!important;padding:5pt 2.8pt!important;line-height:1.15!important;overflow-wrap:normal!important;word-break:normal!important}table.nv-wide th:nth-child(1),table.nv-wide td:nth-child(1){width:24%!important;white-space:normal!important;overflow-wrap:break-word!important}table.nv-wide th:nth-child(2),table.nv-wide td:nth-child(2){width:9%!important}table.nv-wide th:nth-child(n+3),table.nv-wide td:nth-child(n+3){text-align:right!important;font-variant-numeric:tabular-nums;white-space:nowrap!important}table.nv-wide th:nth-child(5),table.nv-wide td:nth-child(5){width:5%!important}table.nv-wide th{white-space:normal!important;hyphens:auto!important}table.nv-wide th:nth-child(n+3){white-space:normal!important}th{background:#edf5fb}'+
-'.nv-letter-header{position:fixed!important;top:-30mm;right:0;width:83mm;height:25mm;display:flex;align-items:center;justify-content:flex-end;background:#fff!important;z-index:9999}.nv-letter-header img{width:77mm;height:24mm;object-fit:contain}'+
-'.nv-letter-footer{position:fixed!important;bottom:-15mm;left:0;right:0;border-top:.7px solid #555;padding-top:5mm;display:flex;justify-content:space-between;gap:2mm;align-items:center;font:7pt Arial,sans-serif;color:#38434e;background:#fff!important;z-index:9999}.nv-letter-footer span{display:flex;align-items:center;gap:1.2mm;white-space:nowrap}.nv-letter-footer svg{flex-shrink:0}'+
-'.report-header,.report-footer{display:none!important}'+
-'@media screen{body.nv-letter-preview{max-width:297mm;min-height:210mm;padding:37mm 14mm 24mm 19mm!important;margin:12px auto!important;background:white!important;box-shadow:0 3px 20px #0003}body.nv-letter-preview .nv-letter-header{position:absolute!important;top:6mm!important;right:14mm!important}body.nv-letter-preview .nv-letter-footer{position:relative!important;bottom:auto!important;margin-top:25mm!important}}'+
-'@media print{.print,.nv-no-print,button{display:none!important}}';
+const left=landscape?'12mm':'19mm',right=landscape?'12mm':'14mm';
+return `@page{size:A4 ${landscape?'landscape':'portrait'};margin:${landscape?'35mm 12mm 20mm 12mm':'37mm 14mm 20mm 19mm'}}
+html,body{font-family:Arial,Helvetica,sans-serif!important;color:#111!important}
+body{font:12pt/1.35 Arial,Helvetica,sans-serif!important;margin:0!important;background:white!important}
+h1{font:700 16pt/1.22 Arial,Helvetica,sans-serif!important;color:#111!important;margin:0 0 12pt!important}
+h2{font:700 14pt/1.24 Arial,Helvetica,sans-serif!important;color:#111!important;margin:13pt 0 8pt!important}
+h3{font:700 12pt Arial,Helvetica,sans-serif!important}
+p,li{font:12pt/1.35 Arial,Helvetica,sans-serif!important}
+.nv-report-meta{font:9pt Arial,Helvetica,sans-serif!important;color:#53667a!important;margin:0 0 14pt!important}
+table{width:100%!important;border-collapse:collapse!important;font:9pt Arial,Helvetica,sans-serif!important;margin:11pt 0;table-layout:auto}
+thead{display:table-header-group!important}tfoot{display:table-footer-group!important}
+tr{break-inside:avoid;page-break-inside:avoid}
+th,td{font-family:Arial,Helvetica,sans-serif!important;padding:6pt 4pt!important;border-bottom:.5pt solid #d5e0e8!important;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+th{background:#eaf2f8!important;font-weight:700}
+tbody tr:nth-child(even){background:#f6f9fc!important}
+table.nv-wide{width:100%!important;table-layout:fixed!important;font:8pt/1.2 Arial,Helvetica,sans-serif!important}
+table.nv-wide th,table.nv-wide td{font:8pt/1.2 Arial,Helvetica,sans-serif!important;padding:6pt 3pt!important;overflow-wrap:break-word!important;word-break:normal!important}
+table.nv-wide th{hyphens:auto!important;white-space:normal!important}
+table.nv-wide td:not(:first-child){font-variant-numeric:tabular-nums}
+table.nv-wide th:nth-child(1),table.nv-wide td:nth-child(1){width:20%!important;overflow-wrap:anywhere!important}
+table.nv-wide th:nth-child(2),table.nv-wide td:nth-child(2){width:8%!important}
+table.nv-wide th:nth-child(3),table.nv-wide td:nth-child(3){width:9%!important}
+table.nv-wide th:nth-child(4),table.nv-wide td:nth-child(4){width:9%!important}
+table.nv-wide th:nth-child(5),table.nv-wide td:nth-child(5){width:5%!important}
+table.nv-wide th:nth-child(6),table.nv-wide td:nth-child(6){width:9%!important}
+table.nv-wide th:nth-child(7),table.nv-wide td:nth-child(7){width:8%!important}
+table.nv-wide th:nth-child(8),table.nv-wide td:nth-child(8){width:8%!important}
+table.nv-wide th:nth-child(9),table.nv-wide td:nth-child(9){width:8%!important}
+table.nv-wide th:nth-child(10),table.nv-wide td:nth-child(10){width:8%!important}
+table.nv-wide th:nth-child(11),table.nv-wide td:nth-child(11){width:8%!important}
+table.nv-wide td:nth-child(n+3){text-align:right!important;white-space:nowrap!important;overflow-wrap:normal!important}
+.nv-letter-header{position:fixed!important;top:-32mm!important;right:0!important;width:78mm;height:27mm;display:flex;align-items:center;justify-content:flex-end;background:white!important;z-index:9999}
+.nv-letter-header img{display:block!important;width:75mm!important;height:24mm!important;object-fit:contain!important}
+.nv-letter-footer{position:fixed!important;bottom:-16mm!important;left:0!important;right:0!important;border-top:.6pt solid #555;padding-top:3mm;display:flex;justify-content:space-between;gap:2mm;align-items:center;font:7pt Arial,Helvetica,sans-serif;color:#38434e;background:#fff!important;z-index:9999}
+.nv-letter-footer span{display:flex;align-items:center;gap:1.2mm;white-space:nowrap}.nv-letter-footer svg{flex-shrink:0}
+.report-header,.report-footer{display:none!important}
+@media screen{body.nv-letter-preview{max-width:${landscape?'297mm':'210mm'};min-height:${landscape?'210mm':'297mm'};padding:${landscape?'35mm 12mm 23mm 12mm':'37mm 14mm 23mm 19mm'}!important;margin:12px auto!important;background:white!important;box-shadow:0 3px 20px #0002}body.nv-letter-preview .nv-letter-header{position:absolute!important;top:5mm!important;right:${right}!important}body.nv-letter-preview .nv-letter-footer{position:relative!important;bottom:auto!important;margin-top:22mm!important}}
+@media print{.print,.nv-no-print,button{display:none!important}body{margin:0!important} .nv-letter-header{position:fixed!important;top:-32mm!important;right:0!important} .nv-letter-footer{position:fixed!important;bottom:-16mm!important}}
+`;
 }
 function brandHtml(markup){
 markup=String(markup||"");if(!/<html[\s>]|<body[\s>]/i.test(markup))return markup;
 const doc=new DOMParser().parseFromString(markup,"text/html");
 if(isAB(doc.title)||doc.querySelector(".nv-letter-header"))return markup;
-const allTables=[...doc.querySelectorAll('table')];const width=Math.max(0,...allTables.map(t=>t.querySelectorAll('thead tr:first-child th').length||t.rows?.[0]?.cells?.length||0));const landscape=width>=7||/@page\s*\{[^}]*landscape/i.test(markup);const style=doc.createElement("style");style.textContent=css(landscape);doc.head.appendChild(style);for(const table of allTables){const cols=table.querySelectorAll('thead tr:first-child th');if(cols.length>=7){table.classList.add('nv-wide');if(cols.length===11){const labels=['Projekt','Projekt-Nr.','Budget CHF','Weitere Ist CHF','Std.','Stunden CHF','Material Ist CHF','Material Plan CHF','Ist gesamt CHF','Prognose CHF','Restbudget CHF'];cols.forEach((el,i)=>el.textContent=labels[i])}}}
+const allTables=[...doc.querySelectorAll("table")];
+const width=Math.max(0,...allTables.map(t=>t.querySelectorAll("thead tr:first-child th").length||t.rows?.[0]?.cells?.length||0));
+const landscape=width>=7||/@page\\s*\\{[^}]*landscape/i.test(markup);
+const style=doc.createElement("style");style.textContent=css(landscape);doc.head.appendChild(style);
+for(const table of allTables){
+ const cols=[...table.querySelectorAll("thead tr:first-child th")];
+ if(cols.length>=7){
+  table.classList.add("nv-wide");
+  if(cols.length===11){
+   const labels=["Projekt","Projekt-Nr.","Budget CHF","Sonstige Ist CHF","Std.","Stunden CHF","Material Ist CHF","Material geplant CHF","Ist-Kosten CHF","Prognose CHF","Restbudget CHF"];
+   cols.forEach((el,i)=>{el.textContent=labels[i];el.setAttribute("scope","col")});
+   const legend=doc.createElement("p");
+   legend.className="nv-report-meta";
+   legend.textContent="Alle Beträge in CHF · Ist-Kosten und Prognosen gemäss erfassten Projektdaten · Projekt-Nr. und Werte unverändert übernommen";
+   table.parentNode.insertBefore(legend,table);
+  }
+ }
+}
+
 doc.querySelectorAll(".report-header,.report-footer").forEach(x=>x.remove());
 const first=doc.body.firstElementChild;if(first&&first.tagName==="IMG"&&/navolta.logo|navolta-logo/i.test(first.getAttribute("src")||""))first.remove();
 const hd=doc.createElement("div");hd.innerHTML=header;doc.body.insertBefore(hd.firstElementChild,doc.body.firstChild);
@@ -40,10 +88,10 @@ w.document.open();w.document.write(build(title,body,subtitle));w.document.close(
 window.NV_PRINT={brandHtml,build,openDoc,css};
 window.printReport=function(title,body,subject){
 if(isAB(title))return;
-const content=String(body||"");const titleH2='<h2>'+esc(title)+'</h2>';const clean=content.trimStart().startsWith(titleH2)?content.trimStart().slice(titleH2.length):content;return openDoc(title,'<div style="font-size:9pt;color:#506172;margin-bottom:13pt">Stand: '+esc(new Date().toLocaleString("de-CH"))+'</div>'+clean);
+const content=String(body||"");const titleH2='<h2>'+esc(title)+'</h2>';const clean=content.trimStart().startsWith(titleH2)?content.trimStart().slice(titleH2.length):content;return openDoc(title,'<div class="nv-report-meta">Stand: '+esc(new Date().toLocaleString("de-CH"))+'</div>'+clean);
 };
 const mainStyle=document.createElement("style");mainStyle.id="nv-letter-main-print";
-mainStyle.textContent='@media print{'+css(false)+'header,.sidebar,nav,#navolta-sharepoint-sync,#nvsp-cover,#nv-ab-launch{display:none!important}}';
+mainStyle.textContent="@media print{"+css(false)+"header,.sidebar,nav,#navolta-sharepoint-sync,#nvsp-cover,#nv-ab-launch{display:none!important}}";
 document.head.appendChild(mainStyle);
 let head=null,foot=null;
 window.addEventListener("beforeprint",()=>{if(isAB(document.title))return;
