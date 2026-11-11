@@ -51,7 +51,7 @@ async function graph(url,options,token){
 }
 function targetUrl(name,action='content'){
  const drive=encodeURIComponent(cfg.driveId),folder=encodeURIComponent(cfg.backupFolderId),file=encodeURIComponent(name);
- return 'https://graph.microsoft.com/v1.0/drives/'+drive+'/items/'+folder+':/'+file+'/'+action;
+ return 'https://graph.microsoft.com/v1.0/drives/'+drive+'/items/'+folder+':/'+file+':/'+action;
 }
 async function uploadLarge(url,blob,token){
  const session=await graph(url.replace(/\/content$/,'/createUploadSession'),{
