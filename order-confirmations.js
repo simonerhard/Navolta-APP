@@ -78,8 +78,8 @@ ${row(383.5,'',`Mehrwertsteuer (${h(x.vat)} %)`,c.tax)}
 ${row(403.5,'','Nettopreis inkl. MwSt.',c.total,true)}
 <div class="fixed bold" style="left:71pt;top:446pt">Zahlungsbedingungen</div><div class="fixed bold" style="left:220pt;top:446pt">${h(x.payment)}</div>
 <div class="fixed bold" style="left:71pt;top:467pt">Bestellung</div><div class="fixed bold" style="left:220pt;top:467pt">${h(x.po)}</div>
-<div class="fixed bold" style="left:71pt;top:488pt">Zuständiger Projektleiter</div><div class="fixed" style="left:220pt;top:488pt">Hr. ${h(x.manager.replace(/^Hr\\.?\\s*/i,''))}</div>
-<div class="fixed bold" style="left:71pt;top:509pt">Kontaktperson des Kunden</div><div class="fixed" style="left:220pt;top:509pt">${contact?'Hr. '+h(contact.replace(/^Hr\\.?\\s*/i,'')):''}</div>
+<div class="fixed bold" style="left:71pt;top:488pt">Zuständiger Projektleiter</div><div class="fixed" style="left:220pt;top:488pt">Hr. ${h(x.manager.replace(/^Hr\.?\s*/i,''))}</div>
+<div class="fixed bold" style="left:71pt;top:509pt">Kontaktperson des Kunden</div><div class="fixed" style="left:220pt;top:509pt">${contact?'Hr. '+h(contact.replace(/^Hr\.?\s*/i,'')):''}</div>
 <div class="fixed" style="left:71pt;top:568pt">Unterschriften:</div>
 <div class="fixed bold" style="left:71pt;top:589pt">Navolta AG</div>
 <div class="fixed" style="left:71pt;top:601pt">Geschäftsleitung / Verwaltungsrat</div>
