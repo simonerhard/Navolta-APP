@@ -109,7 +109,7 @@ async function connect(){
 if(connectButton)connectButton.addEventListener('click',connect);
 window.navoltaSharePointBackup={queue,connect,backupNow:()=>runUpload(true)};
 init().then(()=>{
- if(account){status('SharePoint verbunden · automatische Sicherung aktiv.');if(latestState)queue(latestState)}
+ if(account){status('SharePoint verbunden · lade letzte Sicherung hoch …');if(latestState)runUpload(false)}
  else status('Automatische Sicherung bereit · SharePoint einmal verbinden.');
  setInterval(()=>{if(account&&latestState)runUpload(false)},15*60*1000);
 }).catch(e=>status('SharePoint nicht verfügbar · '+e.message));
