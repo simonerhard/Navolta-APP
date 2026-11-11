@@ -145,6 +145,8 @@ async function sync(isStartup=false){
   const m="SharePoint-Abgleich nicht möglich: "+fmtErr(e);
   status(m,"err");headerStatus(m);
   if(isStartup||!initialized)pause(m);
+  // Optimistic concurrency: retry a short time after an HTTP 412 from another editor.
+  if(e?.status===412&&navigator.onLine)setTimeout(()=>run(!initialized),2500);
  }finally{busy=false}
 }
 async function run(first=false){await sync(first)}
@@ -153,7 +155,7 @@ $("nvsp-cover-login").onclick=()=>run(true);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&initialized)run(false)});
 window.addEventListener("focus",()=>{if(initialized&&!busy)run(false)});
 window.addEventListener("online",()=>run(!initialized));
-setInterval(()=>{if(!document.hidden)run(!initialized)},cfg.intervalMs||900000);
+setInterval(()=>run(!initialized),cfg.intervalMs||900000);
 if(!cfg.clientId||!cfg.tenantId||!cfg.folderShareUrl){pause("Microsoft/SharePoint-Konfiguration fehlt.");return}
 run(true);
 })();
