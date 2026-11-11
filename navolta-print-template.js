@@ -54,7 +54,7 @@ const doc=new DOMParser().parseFromString(markup,"text/html");
 if(isAB(doc.title)||doc.querySelector(".nv-letter-header"))return markup;
 const allTables=[...doc.querySelectorAll("table")];
 const width=Math.max(0,...allTables.map(t=>t.querySelectorAll("thead tr:first-child th").length||t.rows?.[0]?.cells?.length||0));
-const landscape=width>=7||/@page\\s*\\{[^}]*landscape/i.test(markup);
+const landscape=width>=7||/@page\s*\{[^}]*landscape/i.test(markup);
 const style=doc.createElement("style");style.textContent=css(landscape);doc.head.appendChild(style);
 for(const table of allTables){
  const cols=[...table.querySelectorAll("thead tr:first-child th")];
@@ -91,7 +91,7 @@ if(isAB(title))return;
 const content=String(body||"");const titleH2='<h2>'+esc(title)+'</h2>';const clean=content.trimStart().startsWith(titleH2)?content.trimStart().slice(titleH2.length):content;return openDoc(title,'<div class="nv-report-meta">Stand: '+esc(new Date().toLocaleString("de-CH"))+'</div>'+clean);
 };
 const mainStyle=document.createElement("style");mainStyle.id="nv-letter-main-print";
-mainStyle.textContent="@media print{"+css(false)+"header,.sidebar,nav,#navolta-sharepoint-sync,#nvsp-cover,#nv-ab-launch{display:none!important}}";
+mainStyle.textContent='@page{size:A4 portrait;margin:37mm 14mm 20mm 19mm}@media print{body{font-family:Arial,sans-serif!important} .nv-letter-header{position:fixed!important;top:-32mm!important;right:0!important;width:78mm;height:27mm;display:flex;justify-content:flex-end;align-items:center;background:white;z-index:9999}.nv-letter-header img{width:75mm;height:24mm;object-fit:contain}.nv-letter-footer{position:fixed!important;bottom:-16mm!important;left:0!important;right:0!important;border-top:.6pt solid #555;padding-top:3mm;display:flex;justify-content:space-between;gap:2mm;font:7pt Arial,sans-serif;background:white;z-index:9999}.nv-letter-footer span{display:flex;align-items:center;gap:1.2mm;white-space:nowrap}.nv-letter-footer svg{flex-shrink:0}header,.sidebar,nav,#navolta-sharepoint-sync,#nvsp-cover,#nv-ab-launch{display:none!important}}';
 document.head.appendChild(mainStyle);
 let head=null,foot=null;
 window.addEventListener("beforeprint",()=>{if(isAB(document.title))return;
