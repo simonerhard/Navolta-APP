@@ -71,3 +71,6 @@ Korrigiert den Microsoft-Graph-Dateiinhaltspfad: `/root:/datei:/content` statt `
 - Auftragsbestätigungen werden unter `navolta-order-confirmations-v1` im lokalen Browser gespeichert und sind **neu auch im SharePoint-Snapshot** enthalten. Keine automatische Live-Synchronisation oder Konfliktzusammenführung.
 - Keine Dateien wurden auf SharePoint hochgeladen; Speicherung erfolgt erst durch Klick auf „Nach SharePoint sichern“.
 - PDF-Ausgabe orientiert sich am Inhalt und Aufbau der hochgeladenen Vorlage, ist aber **keine pixelgenaue 1:1-Kopie**.
+
+## PDF-Auftragsbestätigung: Typografie und Layout
+Die PDF-Druckansicht verwendet die Originalbilder aus `Vorlage AB.docx`, die Originalschrift Arial (9 pt, Titel 11 pt, Rahmenbedingungen 7 pt) sowie die im Word/PDF ermittelten A4-Positionen. Rahmenbedingungen können im Formular ein- oder ausgeschaltet werden. Im Browser beim PDF-Druck Skalierung 100%, Papierformat A4 und Randlos/keine Ränder verwenden, Kopf- und Fusszeilen deaktivieren.
