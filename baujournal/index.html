@@ -36,7 +36,7 @@
           <div class="field third"><label for="endTime">Arbeitsende <span class="required">*</span></label><input id="endTime" name="endTime" type="time" required /></div>
           <div class="field full"><div class="break-head"><strong>Pausen / Unterbrüche des Monteurs</strong><button class="btn soft small-btn" type="button" id="addMainBreak">＋ Pause hinzufügen</button></div><div class="break-list" id="mainBreaks"></div><div class="hint">Tragen Sie Beginn und Ende ein, z. B. Mittagspause 12:00–12:30.</div></div>
           <div class="field full"><div class="break-head"><strong>Weitere Mitarbeitende</strong><button class="btn soft small-btn" type="button" id="addTeamMember">＋ Mitarbeiter hinzufügen</button></div><div id="teamMembers" class="team-list"></div><div class="hint">Bei Teamarbeit Arbeitsbeginn, Arbeitsende und Pausen je Person separat erfassen.</div></div>
-          <div class="field full"><button class="btn soft" type="button" id="locationBtn">⌖ Standort übernehmen <span class="required">*</span></button><span class="hint" id="locationHint">Pflichtfeld: Standort per GPS übernehmen, bevor das Baujournal erstellt wird.</span><input class="hidden" id="coordinates" name="coordinates" /></div>
+          <div class="field full"><button class="btn soft" type="button" id="locationBtn">⌖ Standort übernehmen (optional)</button><span class="hint" id="locationHint">Optional: GPS-Standort für die Baustelle übernehmen.</span><input class="hidden" id="coordinates" name="coordinates" /></div>
         </div>
       </section>
       <section class="panel">
@@ -64,7 +64,7 @@
       <section class="panel">
         <div class="submitbar"><p>Entwurf wird auf diesem Gerät gespeichert. PDF und E-Mail werden erst beim Klick auf eine Aktion erstellt.</p><div class="submit-actions"><button class="btn" id="saveBtn" type="button">Entwurf sichern</button><button class="btn dark" id="pdfBtn" type="button">PDF erstellen</button><button class="btn primary" id="sendBtn" type="button"><span class="mail-icon">↗</span> PDF teilen (Outlook / WhatsApp)</button></div></div>
         <div class="status" id="status" role="status" aria-live="polite"></div>
-        <div class="notice" style="margin-top:10px">Standort übernehmen und mindestens ein Foto (Kamera oder Fotoalbum) sind Pflichtfelder. Tippen Sie auf <strong>„PDF teilen“</strong> und wählen Sie im Teilen-Menü Outlook, WhatsApp oder eine andere verfügbare App. In Outlook tragen Sie <strong>baujournal@navolta.ch</strong> und <strong>info@navolta.ch</strong> ins An-Feld ein; in WhatsApp wählen Sie die Gruppe <strong>Baujournal</strong>. Prüfen Sie die Nachricht und senden Sie das PDF ab. Auf Geräten ohne Dateifreigabe wird das PDF heruntergeladen und muss in der jeweiligen App manuell angehängt werden.</div>
+        <div class="notice" style="margin-top:10px">Mindestens ein Foto (Kamera oder Fotoalbum) ist Pflicht. Der GPS-Standort kann optional ergänzt werden. Tippen Sie auf <strong>„PDF teilen“</strong> und wählen Sie im Teilen-Menü Outlook, WhatsApp oder eine andere verfügbare App. In Outlook tragen Sie <strong>baujournal@navolta.ch</strong> und <strong>info@navolta.ch</strong> ins An-Feld ein; in WhatsApp wählen Sie die Gruppe <strong>Baujournal</strong>. Prüfen Sie die Nachricht und senden Sie das PDF ab. Auf Geräten ohne Dateifreigabe wird das PDF heruntergeladen und muss in der jeweiligen App manuell angehängt werden.</div>
       </section>
     </form>
     <dialog class="guide-dialog" id="guideDialog" aria-labelledby="guideTitle">
@@ -73,7 +73,7 @@
         <ol class="guide-steps">
           <li><span class="guide-number">1</span><div><strong>Projekt und Baustelle erfassen</strong><p>Wählen Sie ein Projekt aus der Liste. Bei „Freie Eingabe …“ können Sie Projektname, Projektnummer und Installationsadresse selbst eintragen.</p></div></li>
           <li><span class="guide-number">2</span><div><strong>Arbeitszeit und Team eintragen</strong><p>Erfassen Sie Datum, Monteur sowie Arbeitsbeginn und -ende. Fügen Sie Pausen und bei Teamarbeit weitere Mitarbeitende mit deren Arbeitszeiten und Pausen hinzu.</p></div></li>
-          <li><span class="guide-number">3</span><div><strong>Standort übernehmen</strong><p>Tippen Sie auf „Standort übernehmen“ und erlauben Sie den GPS-Zugriff. Der Standort ist für das Baujournal erforderlich.</p></div></li>
+          <li><span class="guide-number">3</span><div><strong>Standort übernehmen</strong><p>Der GPS-Standort ist optional. Tippen Sie auf „Standort übernehmen“, wenn die GPS-Position zusätzlich im Baujournal erscheinen soll.</p></div></li>
           <li><span class="guide-number">4</span><div><strong>Arbeiten dokumentieren</strong><p>Beschreiben Sie ausgeführte Elektroinstallationsarbeiten, Material, Prüfungen, Messungen, Pendenzen und nächste Schritte.</p></div></li>
           <li><span class="guide-number">5</span><div><strong>Baustellenfoto hinzufügen</strong><p>Mindestens ein Foto ist Pflicht. Nehmen Sie ein Bild mit der Kamera auf oder wählen Sie eines aus dem Fotoalbum.</p></div></li>
           <li><span class="guide-number">6</span><div><strong>Visieren und bestätigen</strong><p>Unterschreiben Sie im Feld mit Finger, Stift oder Maus und bestätigen Sie die Richtigkeit der Angaben.</p></div></li>
@@ -130,7 +130,6 @@
     function safeName(s){return (s||'Baujournal').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,45)||'Baujournal'}
     async function makePDF(){
       if(!form.reportValidity())return null;
-      if(!document.getElementById('coordinates').value){status.textContent='Bitte zuerst den GPS-Standort übernehmen.';document.getElementById('locationBtn').scrollIntoView({behavior:'smooth',block:'center'});return null}
       if(!photos.length){status.textContent='Bitte mindestens ein Baustellenfoto entweder mit der Kamera aufnehmen oder aus dem Fotoalbum auswählen.';document.getElementById('cameraInput').scrollIntoView({behavior:'smooth',block:'center'});return null}
       if(incompleteBreak(mainBreakList)||[...teamMembers.querySelectorAll('.team-breaks')].some(incompleteBreak)){status.textContent='Bitte bei jeder erfassten Pause Beginn und Ende vollständig eintragen.';return null}
       if(!signed){status.textContent='Bitte zuerst das Visum des Monteurs zeichnen.';canvas.scrollIntoView({behavior:'smooth',block:'center'});return null}
