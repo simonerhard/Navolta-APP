@@ -7,8 +7,12 @@ const projects = [
 const recipients = 'info@navolta.ch,se@navolta.ch';
 const projectDetails = {
   "schafisheim": {
-    "contact": "Navolta AG · Projektanfragen",
-    "email": "info@navolta.ch",
+    "contact": "Bekim Kabashi · Bauleiter · Konstantin Architektur AG",
+    "email": "b.kabashi@konstantin-architektur.com",
+    "phones": ["+41 43 421 52 35", "+41 78 934 50 40", "+41 43 545 22 11"],
+    "phoneLabels": ["Direkt", "Mobil", "Zentrale"],
+    "address": "Limmattalstrasse 124, CH-8049 Zürich",
+    "website": "http://www.konstantin-architektur.com/",
     "start": "24.08.2026",
     "end": "22.06.2027",
     "basis": "Elektro (BKP 230), Bauterminplan vom 04.08.2026"
