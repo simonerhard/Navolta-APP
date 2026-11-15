@@ -134,7 +134,7 @@ const documents = {
     },
     {
       "url": "https://navolta-subunternehmer.fizzysiren1027.chatgpt.site/pdf/schafisheim-werkvertrag-auszug.pdf",
-      "label": "Werkvertrag Elektro – Übersicht ohne Preise",
+      "label": "Werkvertrag Elektro – inklusive Leistungspositionen ohne Preise",
       "category": "Weitere Unterlagen",
       "preliminary": false
     }
@@ -256,7 +256,7 @@ const documents = {
     },
     {
       "url": "https://navolta-subunternehmer.fizzysiren1027.chatgpt.site/pdf/aarau-werkvertrag-auszug.pdf",
-      "label": "Werkvertrag Elektro – Übersicht ohne Preise",
+      "label": "Werkvertrag Elektro – inklusive Leistungspositionen ohne Preise",
       "category": "Weitere Unterlagen",
       "preliminary": false
     },
@@ -324,7 +324,7 @@ const documents = {
     },
     {
       "url": "https://navolta-subunternehmer.fizzysiren1027.chatgpt.site/pdf/cleverfit-werkvertrag-auszug.pdf",
-      "label": "Werkvertrag Elektro – Übersicht ohne Preise",
+      "label": "Werkvertrag Elektro – inklusive Leistungspositionen ohne Preise",
       "category": "Weitere Unterlagen",
       "preliminary": false
     }
@@ -332,7 +332,7 @@ const documents = {
   "tegerfelden": [
     {
       "url": "https://navolta-subunternehmer.fizzysiren1027.chatgpt.site/pdf/tegerfelden-werkvertrag-auszug.pdf",
-      "label": "Werkvertrag Elektro – Übersicht ohne Preise",
+      "label": "Werkvertrag Elektro – inklusive Leistungspositionen ohne Preise",
       "category": "Weitere Unterlagen",
       "preliminary": false
     },
