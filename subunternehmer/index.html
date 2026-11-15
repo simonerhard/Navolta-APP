@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Subunternehmerportal | Navolta AG</title>
+<meta name="description" content="Projektunterlagen prüfen, verfügbare Kapazität melden und Offerte an Navolta AG einreichen.">
+<link rel="stylesheet" href="style.css">
+<script src="documents.js" defer></script>
+<script src="scan.js" defer></script>
+<script src="app.js" defer></script>
+</head>
+<body>
+<header class="mast"><div class="wrap top"><img src="../navolta-logo.png" alt="Navolta AG" width="194"><a href="#antwort">Zur Rückmeldung ↓</a></div></header>
+<main>
+<section class="hero"><div class="wrap intro">
+<div><p class="eyebrow">NAVOLTA AG / VERGABE</p><h1>Subunternehmerportal</h1><p>Prüfen Sie die Projektunterlagen und wählen Sie die Projekte, die Sie mit Ihrem Team übernehmen können. Die PDF-Unterlagen öffnen sich im zugangsgeschützten Navolta-Portal.</p></div>
+<div class="deadline"><span>Offerte einreichen bis</span><strong><time datetime="2026-11-18">18. November 2026</time></strong></div>
+</div></section>
+<div class="wrap layout">
+<section aria-labelledby="project-title">
+<div class="section-head"><h2 id="project-title">Projekte und Unterlagen</h2><span id="count">4 Projekte</span></div>
+<div id="projects"></div>
+</section>
+<section id="antwort" class="panel" aria-labelledby="answer-title">
+<h2 id="answer-title">Ihre Rückmeldung</h2>
+<p id="selection" aria-live="polite">Wählen Sie mindestens ein Projekt aus.</p>
+<form>
+<label>Firma <input name="company" autocomplete="organization" required maxlength="100"></label>
+<label>Kontaktperson <input name="person" autocomplete="name" required maxlength="100"></label>
+<label>E-Mail <input type="email" name="email" autocomplete="email" required maxlength="120"></label>
+<label>Telefon <input type="tel" name="phone" autocomplete="tel" maxlength="40"></label>
+<label>Kapazität und Verfügbarkeit <textarea name="capacity" maxlength="500" rows="3" placeholder="Teamgrösse, möglicher Start, verfügbare Wochen"></textarea></label>
+<label>Leistungsumfang und Abgrenzungen <textarea name="scope" maxlength="700" rows="4" placeholder="Übernehmbare Arbeiten je Projekt, Annahmen und Ausschlüsse"></textarea></label>
+<label>Ausführungstermine und Gültigkeit der Offerte <textarea name="terms" maxlength="400" rows="3"></textarea></label>
+<fieldset class="scan">
+<legend>Unterschriebene Offerte scannen</legend>
+<p>Fotografieren Sie jede Seite oder wählen Sie einen vorhandenen PDF-Scan. Fotos werden zu einem PDF zusammengefasst.</p>
+<div class="scan-controls">
+<label for="scan-camera">Kamera öffnen</label>
+<input type="file" id="scan-camera" accept="image/*" capture="environment">
+<label for="scan-files">PDF oder Fotos auswählen</label>
+<input type="file" id="scan-files" accept="application/pdf,image/*,.pdf" multiple>
+</div>
+<ul id="scan-list" aria-label="Seiten und PDF-Dateien"></ul>
+<button type="button" id="scan-download" hidden>Scan als PDF speichern</button>
+<output id="scan-status" role="status"></output>
+</fieldset>
+<div class="actions"><button type="button" id="draft">Offertentwurf erstellen</button>
+<button type="submit" class="primary" value="interest">Projektauswahl per E-Mail melden</button>
+<button type="submit" value="offer">Offerte per E-Mail einreichen</button></div>
+<p class="help">Die E-Mail öffnet sich mit <strong>info@navolta.ch</strong> und <strong>se@navolta.ch</strong> als Empfängern. Mit einem Scan lädt die App einen E-Mail-Entwurf mit PDF-Anhang herunter. Öffnen Sie die EML-Datei in einem kompatiblen Mailprogramm und senden Sie die Nachricht. Alternativ speichern Sie den Scan als PDF und hängen ihn selbst an.</p>
+<output id="status" role="status"></output>
+</form>
+</section>
+</div>
+</main>
+<footer class="wrap">Navolta AG · Subunternehmerportal</footer>
+<dialog id="offer-dialog" aria-labelledby="offer-title">
+<div class="dialog-head"><h2 id="offer-title">Offertentwurf</h2><form method="dialog"><button>Schliessen</button></form></div>
+<label>Entwurf bearbeiten<textarea id="offer-text" rows="16"></textarea></label>
+<div class="actions"><button id="download">Als Text speichern</button><button id="print" class="primary">Drucken / als PDF speichern</button></div>
+</dialog>
+<article id="print-offer"></article>
+</body>
+</html>
