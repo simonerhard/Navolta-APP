@@ -10,3 +10,8 @@
 .scope-options .pick{display:flex;margin:.25rem 0;align-items:flex-start}
 .scope-options .pick:first-of-type{font-weight:700}
 @media(max-width:380px){.timing{grid-template-columns:1fr}.timing dd{margin-bottom:.3rem}}
+
+.project-preview{margin:.8rem 0 1rem}
+.project-preview a{display:block;border:1px solid #cdd9e1;border-radius:.65rem;overflow:hidden;background:#fff}
+.project-preview img{display:block;width:100%;height:auto}
+.project-preview figcaption{font-size:.875rem;color:#43566a;margin-top:.35rem}

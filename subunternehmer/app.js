@@ -86,6 +86,12 @@ const services = {
   }
 };
 const projectList = document.querySelector('#projects');
+const projectImages = {
+  schafisheim: {plan: 'schafisheim-09.pdf', caption: 'Ostfassade des Mehrfamilienhauses'},
+  aarau: {plan: 'aarau-04.pdf', caption: 'Fassadenansicht des AME-Gebäudes'},
+  tegerfelden: {plan: 'tegerfelden-eg.pdf', caption: 'Elektroplan Erdgeschoss der Schulhauserweiterung'},
+  cleverfit: {plan: 'cleverfit-01.pdf', caption: 'Elektro-Apparateplan des Fitnessstudios'}
+};
 const form = document.querySelector('#antwort form');
 const selection = document.querySelector('#selection');
 const status = document.querySelector('#status');
@@ -101,6 +107,21 @@ function element(name, value, className) {
 
 for (const project of projects) {
   const card = element('article', '', 'card');
+  const projectImage = projectImages[project.id];
+  const preview = element('figure', '', 'project-preview');
+  const plan = element('a');
+  plan.href = documents[project.id].find(file => file.url.endsWith('/' + projectImage.plan)).url;
+  plan.target = '_blank';
+  plan.rel = 'noopener';
+  const image = element('img');
+  image.src = 'https://navolta-subunternehmer.fizzysiren1027.chatgpt.site/project-images/' + project.id + '.webp';
+  image.alt = projectImage.caption + ' · ' + project.name + ' (PDF öffnen)';
+  image.width = 1200;
+  image.height = 720;
+  image.loading = 'lazy';
+  image.decoding = 'async';
+  plan.append(image);
+  preview.append(plan, element('figcaption', projectImage.caption));
   const details = projectDetails[project.id];
   const contact = element(details.email ? 'a' : 'span', details.contact);
   if (details.email) contact.href = 'mailto:' + details.email;
@@ -151,7 +172,7 @@ for (const project of projects) {
     choices.append(label);
   }
   card.append(element('h3', project.name), element('p', project.place, 'place'),
-    element('p', project.work), contactLine, timing, element('p', details.basis, 'schedule'), choices);
+    preview, element('p', project.work), contactLine, timing, element('p', details.basis, 'schedule'), choices);
   const files = element('details');
   files.append(element('summary', `Unterlagen ansehen · ${documents[project.id].length} PDFs`));
   for (const category of ['Terminplan','Pläne','Weitere Unterlagen']) {
