@@ -14,22 +14,30 @@ const projectDetails = {
     "basis": "Elektro (BKP 230), Bauterminplan vom 04.08.2026"
   },
   "aarau": {
-    "contact": "Philippe Blum · Navolta AG",
-    "email": "info@navolta.ch",
+    "contact": "Jonas Stadelmann · Bauleitung · Eloise C. Baumann",
+    "email": "stadelmann@eloisecbaumann.ch",
+    "phones": ["+41 44 223 25 93", "+41 78 450 25 65"],
+    "address": "Badenerstrasse 658, 8048 Zürich",
+    "availability": "Freitags abwesend.",
     "start": "14.09.2026",
     "end": "11.06.2027",
     "basis": "Elektroanlagen (BKP 23), Terminplan als Vorabzug"
   },
   "tegerfelden": {
-    "contact": "Philippe Blum · Leitung Ausführung",
-    "email": "pb@navolta.ch",
+    "contact": "Henner Mohr · Wölfli Bauplanung GmbH",
+    "email": "hm@woelfli-bauplanung.ch",
+    "phones": ["+41 44 535 22 22"],
+    "website": "http://www.woelfli-bauplanung.ch/",
     "start": "August 2026 · Einlagen im Rohbau",
     "end": "Juni 2027 · Ende des allgemeinen Ausbaus",
     "basis": "Grobtermine gemäss Elektroausschreibung. Elektro-Endtermin separat zu bestätigen."
   },
   "cleverfit": {
-    "contact": "Jochen Vöhringer · Projektleitung METHABAU",
-    "email": "j.voehringer@methabau.ch",
+    "contact": "Tanja Ammann · Bauleitung · METHABAU",
+    "phones": ["+41 71 414 16 38", "+41 71 414 00 14"],
+    "phoneLabels": ["Direkt", "Zentrale"],
+    "address": "Fehlwiesstrasse 28, CH-8580 Amriswil",
+    "website": "https://methabau.ch/",
     "start": "Ca. Ende August / September 2026",
     "end": "Gemäss Terminprogramm und Absprache mit der Bauleitung",
     "basis": "Vergabeverhandlung zum Werkvertrag Nr. 23011"
@@ -90,10 +98,33 @@ function element(name, value, className) {
 for (const project of projects) {
   const card = element('article', '', 'card');
   const details = projectDetails[project.id];
-  const contact = element('a', details.contact);
-  contact.href = 'mailto:' + details.email;
+  const contact = element(details.email ? 'a' : 'span', details.contact);
+  if (details.email) contact.href = 'mailto:' + details.email;
   const contactLine = element('p', 'Ansprechperson: ', 'place');
   contactLine.append(contact);
+  if (details.phones) {
+    const channels = element('span');
+    if (details.email) {
+      const email = element('a', details.email);
+      email.href = contact.href;
+      channels.append(element('br'), email);
+    }
+    for (const [index, phone] of details.phones.entries()) {
+      const label = details.phoneLabels?.[index];
+      const phoneLink = element('a', label ? label + ' ' + phone : phone);
+      phoneLink.href = 'tel:' + phone.replaceAll(' ', '');
+      channels.append(element('br'), phoneLink);
+    }
+    if (details.website) {
+      const website = element('a', new URL(details.website).hostname);
+      website.href = details.website;
+      channels.append(element('br'), website);
+    }
+    for (const note of [details.address, details.availability].filter(Boolean)) {
+      channels.append(element('br'), note);
+    }
+    contactLine.append(channels);
+  }
   const timing = element('dl', '', 'timing');
   timing.append(element('dt', 'Ausführungsbeginn'), element('dd', details.start),
     element('dt', 'Ausführungsende'), element('dd', details.end));
