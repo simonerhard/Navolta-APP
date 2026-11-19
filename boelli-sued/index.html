@@ -1,6 +1,10 @@
-<!doctype html>
-<html lang="de-CH"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Navolta AG · Bölli Süd</title>
-<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#102e42;color:#fff;font:16px system-ui}main{width:min(31rem,90vw);padding:2rem;box-sizing:border-box}h1{font-size:clamp(2rem,7vw,3.25rem);line-height:1.05;margin:.45em 0}p{color:#ccdfeb}a{display:inline-block;background:#fff;color:#102e42;padding:.8rem 1.15rem;border-radius:.5rem;text-decoration:none;font-weight:700;margin-top:.6rem}</style>
-<main><p>Navolta AG</p><h1>Bölli Süd</h1><p>Pendenzencockpit der Bauleitung</p><a href="https://navolta-pendenzencockpit.fizzysiren1027.chatgpt.site">App öffnen</a></main>
-</html>
+<!doctype html><html lang="de-CH"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#102e42"><title>Navolta Pendenzencockpit</title><link rel="stylesheet" href="style.css"></head>
+<body><header><div class="head"><img src="../baujournal/assets/navolta-logo.png" alt="Navolta AG"><button class="light" id="help">Kurzanleitung</button></div></header><main>
+<section class="intro"><div><h1>Pendenzen</h1><p>Bölli Süd · Niederlenz</p></div><button id="closeout" class="primary">Abschluss</button></section>
+<section class="simple"><p>Ohne Anmeldung. Bearbeitungen, Fotos und Unterlagen werden in diesem Browser gespeichert.</p><button id="importProject" type="button">Projektpaket importieren</button><input type="file" id="projectFile" accept=".zip" hidden> <span id="projectStatus" role="status"></span></section><nav aria-label="Ansicht"><button data-view="items">Pendenzen</button><button data-view="history">Verlauf</button><button data-view="docs">Unterlagen</button></nav>
+
+<div id="content" aria-live="polite"><p>Cockpit wird geladen …</p></div>
+</main><dialog id="dialog"><div id="dialogBody"></div></dialog><div id="toast" role="status"></div>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js" integrity="sha384-weMABwrltA6jWR8DDe9Jp5blk+tZQh7ugpCsF3JwSA53WZM9/14PjS5LAJNHNjAI" crossorigin="anonymous" defer></script>
+<script src="reports.js" defer></script><script type="module" src="app.js"></script></body></html>
