@@ -1,0 +1,361 @@
+<!doctype html><html lang="de-CH"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Navolta | Pendenzencockpit</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:#182c40;font:15px system-ui,sans-serif}header{background:#102b45;color:white;padding:24px 5%;border-bottom:5px solid #00bcd4}header b{font-size:28px;letter-spacing:3px}header small{letter-spacing:2px;color:#62dcec}main{max-width:1450px;margin:auto;padding:24px}h1{margin:0 0 8px}p{line-height:1.5}.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin:20px 0}.tile,section{background:white;border:1px solid #dce4eb;border-radius:12px;padding:18px}.tile strong{display:block;font-size:32px}.red{color:#b42318}.green{color:#08734c}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}button,a.btn{background:#123b57;color:white;border:0;border-radius:7px;padding:10px 14px;font:inherit;cursor:pointer;text-decoration:none}button.alt{background:#e5edf3;color:#123b57}input,select,textarea{border:1px solid #bac9d5;border-radius:6px;padding:10px;font:inherit;max-width:100%;background:white}textarea{width:100%}label{display:flex;flex-direction:column;gap:5px;font-size:13px}table{border-collapse:collapse;width:100%;min-width:900px}td,th{padding:12px;text-align:left;border-bottom:1px solid #e1e8ef;vertical-align:top}th{background:#edf4f8;font-size:12px;text-transform:uppercase}.scroll{overflow:auto}.muted{color:#607487}.pill{display:inline-block;border-radius:20px;padding:4px 9px;background:#e8eef4}.late{background:#fee4e2;color:#a21b15}.done{background:#d8f4e6;color:#08734c}dialog{border:1px solid #bac9d5;border-radius:12px;width:min(700px,95vw);padding:24px}dialog::backdrop{background:#14283c99}.formgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}#notice{background:#fff4d8;padding:12px;border-radius:8px}details{margin-top:18px} @media print{header{color:#102b45;background:white}.toolbar,button,details,#notice,.actions{display:none!important}main{padding:0}.scroll{overflow:visible}table{min-width:0;font-size:10px}td,th{padding:5px}body{background:white}tr{break-inside:avoid}}
+ 
+:root{--ink:#122b41;--blue:#006c98;--pale:#ecf6fa}
+body{background:#f2f6fa;color:var(--ink);margin:0}
+header{background:white!important;color:var(--ink)!important;border-bottom:3px solid #0584b3;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px clamp(16px,4vw,60px)!important}
+.brand{width:205px;max-width:54%;height:auto;display:block} header div{font-size:13px;text-align:right}
+main{padding:22px 16px!important} h1{font-size:clamp(28px,5vw,42px);margin:0 0 5px}
+section{border:1px solid #dfe8ef} .tiles{margin-top:20px}
+.tile{border-top:3px solid #0b7da7}.tile strong{font-size:30px!important}
+.views{border-bottom:1px solid #e1eaf0;padding-bottom:10px}
+button,.btn{min-height:40px;text-decoration:none;cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #12a0cb;outline-offset:2px}
+textarea{white-space:pre-wrap} td{overflow-wrap:anywhere}
+dialog{max-height:90dvh;width:min(690px,calc(100% - 26px));box-sizing:border-box;overflow:auto}
+dialog::backdrop{background:#10263e85}.photoGrid{display:flex;flex-wrap:wrap;gap:8px}.photoGrid img{width:min(130px,33vw);height:100px;object-fit:cover;border-radius:8px}.detailText{white-space:pre-wrap;overflow-wrap:anywhere}
+#printReport{display:none}.statusNote{display:block;margin-top:6px}.source{margin-top:6px;color:#486579}
+@media(max-width:650px){ header div{max-width:120px} .toolbar>*{flex-grow:1} .toolbar input,.toolbar select{min-width:0;width:auto} .scroll{overflow:visible} table,tbody,tr,td{display:block;width:auto;min-width:0} thead{display:none} tbody tr{margin:10px 0;border:1px solid #d9e4eb;border-radius:10px;padding:9px} tbody td{border:0;padding:4px 7px} td[data-label]::before{content:attr(data-label) " · ";font-weight:600;color:#496479} .formgrid{grid-template-columns:1fr!important} }
+@media print{body{background:white} body.report-print main,body.report-print header,body.report-print dialog{display:none!important} body.report-print #printReport{display:block;border:0} #printReport img{max-width:68mm;max-height:60mm;object-fit:contain} #printReport article{break-inside:avoid} }
+.mailRow{padding:10px 0;border-bottom:1px solid #dce4eb;display:flex;flex-wrap:wrap;align-items:center;gap:8px}.mailRow div{flex:1 1 220px}#notificationPanel{background:#f5f9fc;border:1px solid #dce4eb;border-radius:10px;padding:12px;margin:14px 0}#notificationPanel summary{cursor:pointer;color:#123b57}</style><header><img class="brand" alt="Navolta AG" src="data:image/webp;base64,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"><div>Projektsteuerung · Qualitätssicherung</div></header><main><h1>Pendenzencockpit</h1><div class="muted">Mängelmanagement · Lokale Arbeitskopie</div><p id="notice">Noch keine verifizierten Dalux-Daten importiert. Eine leere Liste bedeutet nicht, dass keine Pendenzen vorhanden sind.</p><div class="tiles" id="tiles"></div><section><h2>Mängel und Aufgaben</h2><div id="summary"></div><div class="toolbar"><button onclick="edit()">+ Neue Pendenz</button><button onclick="document.getElementById('import').click()">Dalux CSV / JSON importieren</button><input hidden type="file" id="import" accept=".csv,.tsv,.json"><button class="alt" onclick="backup()">Datensicherung JSON</button><button class="alt" onclick="csvout()">CSV exportieren</button><button class="alt" onclick="excelOut()">Excel exportieren (.xlsx)</button><button class="alt" onclick="managementPrint()">PDF / Drucken</button><button class="alt" onclick="mail()">Management-Mail</button></div><details id="notificationPanel"><summary id="notificationCount">E-Mail-Entwürfe</summary><p>Empfänger: info@navolta.ch, se@navolta.ch und ab@navolta.ch. Öffne den Entwurf im Mailprogramm und sende ihn dort ab.</p><p id="notificationError" role="alert" class="red"></p><div id="notificationQueue"></div></details><nav class="toolbar views" aria-label="Ansicht"><button data-view="all">Aufgabenliste</button><button data-view="plan" class="alt">Massnahmen- und Terminplan</button><button data-view="report" class="alt">Zur Prüfung</button></nav><div class="toolbar"><input id="q" aria-label="Aufgaben suchen" placeholder="Suche: Nummer, Aufgabe, Ort …"><select id="filter"><option value="">Alle Status</option><option>Offen</option><option>In Arbeit</option><option>Zur Kontrolle</option><option>Erledigt</option><option>Unbekannt</option><option>Überfällig</option><option>Nacharbeit</option></select><select id="person"><option value="">Alle Zuständigen</option></select><select id="priority"><option value="">Alle Prioritäten</option><option>Kritisch</option><option>Hoch</option><option>Normal</option><option>Niedrig</option><option>Unbekannt</option></select></div><div class="scroll"><table><thead><tr><th>Nr. / Projekt</th><th>Pendenz / Ort</th><th>Zuständig</th><th>Frist</th><th>Priorität</th><th>Status</th><th class="actions">Aktionen</th></tr></thead><tbody id="rows"></tbody></table></div></section><details><summary>Anleitung und Datensicherung</summary><p>In Dalux Field → Aufgaben → alle relevanten Filter entfernen → Mehr → Exportieren → Gesamte Liste → Excel. Alle benötigten Spalten sichtbar machen. Excel öffnen und als CSV UTF-8 speichern. CSV hier importieren. Unbekannte Status werden nicht als erledigt gewertet. Bei erneutem Import werden vorhandene Datensätze mit gleicher ID und gleichem Projekt aktualisiert; vorher Sicherung erstellen. Ohne ID wird eine neue lokale ID vergeben. Originalspalten bleiben in der JSON-Sicherung enthalten.</p><p>Abmeldungen und Fotos werden im Browser dieses Geräts gespeichert und können per JSON auf ein anderes Gerät übernommen werden. PDF-Nachweise lassen sich zur Weitergabe speichern. Der Prüfstatus gilt im Cockpit. Dalux bleibt schreibgeschützt. Quelle und Cockpit-Status bleiben nachvollziehbar. Keine automatische Dalux-Synchronisation, keine serverseitige Speicherung. JSON-Sicherungen können manuell auf SharePoint abgelegt werden. PDF über den Druckdialog speichern. Management-Mail öffnet einen Entwurf ohne Anhang.</p></details></main><dialog id="dlg"><form id="form"><h2>Pendenz bearbeiten</h2><div class="formgrid" id="fields"></div><label>Beschreibung / Massnahme<textarea name="description" rows="4"></textarea></label><label>Erledigungsnachweis / Bemerkung<textarea name="note" rows="3"></textarea></label><label>Dalux-Link<input name="link" type="url"></label><div class="toolbar"><button type="submit">Speichern</button><button type="button" class="alt" onclick="dlg.close()">Abbrechen</button></div></form></dialog>
+<dialog id="reportDlg"><form id="reportForm">
+<h2>Mangel abmelden</h2><p id="reportContext"></p>
+<div class="formgrid"><label>Gemeldet von<input name="by" required></label><label>Erledigt am<input name="date" type="date" required></label></div>
+<label>Ausgeführte Massnahme<textarea name="work" rows="4" required></textarea></label>
+<div class="formgrid"><label>Fotos aus Album / Dateien<input id="photos" type="file" accept="image/*" multiple></label><label>Foto aufnehmen<input id="camera" type="file" accept="image/*" capture="environment"></label></div>
+<p class="muted">Mindestens ein Foto als Erledigungsnachweis.</p><div id="photoPreview" class="photoGrid"></div>
+<div id="reportError" role="alert" class="red"></div><div class="toolbar"><button type="submit">Zur Prüfung melden</button><button type="button" class="alt" data-close="reportDlg">Abbrechen</button></div></form></dialog>
+<dialog id="detailDlg"><div id="detailBody"></div><div class="toolbar"><button class="alt" data-close="detailDlg">Schliessen</button></div></dialog>
+<dialog id="locationDlg"><form id="locationForm">
+<h2>Standort und Fotos</h2><p id="locationContext"></p>
+<label>Gebäude, Geschoss oder Raum<input name="label" required placeholder="z. B. 2. OG, Küche Süd"></label>
+<div class="formgrid"><label>Standortfotos auswählen<input name="album" type="file" accept="image/*" multiple></label><label>Standort fotografieren<input name="capture" type="file" accept="image/*" capture="environment"></label></div>
+<div id="locationExisting" class="photoGrid"></div><p id="locationError" role="alert" class="red"></p>
+<div class="toolbar"><button type="submit">Standort speichern</button><button type="button" class="alt" data-close="locationDlg">Abbrechen</button></div></form></dialog><section id="printReport" aria-hidden="true"></section>
+<script id="seed" type="application/json">[]</script><script>
+const $=id=>document.getElementById(id), key='navolta-pendenzen-v1';let data=[];try{data=JSON.parse(localStorage.getItem(key)||'[]')}catch(e){}let editing=-1;const statuses=['Offen','In Arbeit','Zur Kontrolle','Erledigt','Unbekannt'], priorities=['Kritisch','Hoch','Normal','Niedrig','Unbekannt'];const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const today=()=>{let d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};function save(){try{localStorage.setItem(key,JSON.stringify(data.map(({workflow,locationEvidence,...t})=>t)))}catch(e){alert('Lokale Speicherung fehlgeschlagen. Bitte JSON-Sicherung exportieren.');return false}render();return true}
+let view='all', shown=[];
+const statusFor=t=>t.workflow?.status==='Nacharbeit'&&t.status!=='Erledigt'?'Nacharbeit':t.workflow?.status==='Zur Kontrolle'&&t.status!=='Erledigt'?'Zur Kontrolle':t.workflow?.status==='Erledigt'?'Erledigt':t.status;
+const lateFor=t=>statusFor(t)!=='Erledigt'&&!!t.due&&t.due<today();
+const taskTitle=t=>t.title||'Aufgabe '+t.id;
+const critical=t=>statusFor(t)!=='Erledigt'&&t.priority==='Kritisch';
+const measure=t=>t.measure||({ 'Zur Kontrolle':'Erledigungsnachweis prüfen', 'Nacharbeit':'Rückmeldung prüfen und Mangel nachbessern' }[statusFor(t)]||(t.due&&lateFor(t)?'Mangel beheben und überfällige Frist mit Bauleitung klären':'Mangel beheben und Nachweis erfassen'));
+function render(){
+  const open=data.filter(t=>statusFor(t)!=='Erledigt'),done=data.length-open.length;
+  const late=data.filter(lateFor),crit=data.filter(critical),review=data.filter(t=>statusFor(t)==='Zur Kontrolle');
+  $('tiles').innerHTML=[['Erfasst',data.length,''],['Pendent',open.length,''],['Überfällig',late.length,'red'],['Kritisch',crit.length,'red'],['Zur Prüfung',review.length,''],['Erledigt',done,'green']].map(([name,n,c])=>`<div class="tile">${name}<strong class="${c}">${n}</strong></div>`).join('');
+  const synced=data.filter(t=>t.source==='Dalux');
+  $('notice').hidden=!synced.length&&data.length>0;
+  $('notice').textContent=synced.length?`${synced.length} Aufgaben aus Dalux · lokale Arbeitskopie`:'Projektdatei über „Dalux CSV / JSON importieren“ laden oder eine Aufgabe erfassen. Die Projektdaten werden auf diesem Gerät gespeichert.';
+  $('summary').textContent=`${open.filter(t=>!t.owner).length} offene Aufgaben ohne Zuständigkeit · ${open.filter(t=>!t.due).length} ohne Frist · ${open.filter(t=>!t.priority||t.priority==='Unbekannt').length} ohne Prioritätsangabe`;
+  const owner=$('person').value;
+  $('person').innerHTML='<option value="">Alle Zuständigen</option>'+[...new Set(data.map(t=>t.owner).filter(Boolean))].sort().map(v=>`<option>${esc(v)}</option>`).join('');
+  $('person').value=owner;
+  const q=$('q').value.trim().toLowerCase(), filter=$('filter').value, priority=$('priority').value;
+  shown=data.map((t,i)=>({...t,i})).filter(t=>{
+    const status=statusFor(t);
+    const searchable=[t.id,t.project,t.title,taskLocation(t),t.owner,t.description,t.workflow?.work].join(' ').toLowerCase();
+    return (!q||searchable.includes(q))&&(!filter||(filter==='Überfällig'?lateFor(t):status===filter))&&(!owner||t.owner===owner)&&(!priority||(t.priority||'Unbekannt')===priority)&&(view==='all'||(view==='plan'?status!=='Erledigt':status==='Zur Kontrolle'));
+  }).sort((a,b)=>Number(critical(b))-Number(critical(a))||Number(lateFor(b))-Number(lateFor(a))||(a.due||'9999').localeCompare(b.due||'9999')||a.id.localeCompare(b.id,'de',{numeric:true}));
+  $('rows').innerHTML=shown.length?shown.map(t=>{
+    const status=statusFor(t), late=lateFor(t);
+    return `<tr><td><b>${esc(t.id)}</b><br>${esc(t.project)}</td><td><b>${esc(taskTitle(t))}</b><br>${esc(taskLocation(t)||"Standort offen")}${(t.sourceMedia?.length||t.locationEvidence?.photos?.length)?'<small class="statusNote source">📷 Standortfotos in Details</small>':""}${view==='plan'?'<span class="statusNote">'+esc(measure(t))+'</span>':''}</td><td data-label="Zuständig">${esc(t.owner||'Offen')}</td><td data-label="Frist" class="${late?'red':''}">${esc(t.due||'Offen')}${late?' · überfällig':''}</td><td data-label="Priorität">${esc(t.priority||'Unbekannt')}</td><td><span class="pill ${status==='Erledigt'?'done':late?'late':''}">${esc(status)}</span>${t.source==='Dalux'?'<small class="statusNote source">Dalux: '+esc(t.sourceStatus||t.status)+'</small>':''}</td><td class="actions"><button class="alt" data-action="detail" data-i="${t.i}">Details</button> ${status==='Erledigt'||status==='Zur Kontrolle'?'':`<button data-action="report" data-i="${t.i}">Abmelden</button>`}</td></tr>`;
+  }).join(''):'<tr><td colspan="7" class="muted">Keine Einträge in dieser Ansicht.</td></tr>';
+  document.querySelectorAll('[data-view]').forEach(b=>{b.classList.toggle('alt',b.dataset.view!==view);b.setAttribute('aria-pressed',String(b.dataset.view===view))});
+}
+const fld=[['id','Nummer'],['project','Projekt'],['title','Pendenz'],['location','Ort / Gebäude'],['owner','Zuständig'],['due','Frist','date'],['status','Status',statuses],['priority','Priorität',priorities]]; $('fields').innerHTML=fld.map(([k,l,v])=>`<label>${l}${Array.isArray(v)?`<select name="${k}">${v.map(x=>`<option>${x}</option>`).join('')}</select>`:`<input name="${k}" type="${v||'text'}" ${k==='title'?'required':''}>`}</label>`).join('');function edit(i=-1){editing=i;let t=data[i]||{id:'NV-'+Date.now(),status:'Offen',priority:'Normal'};for(let el of $('form').elements)if(el.name)el.value=t[el.name]||'';$('dlg').showModal()}$('form').onsubmit=e=>{e.preventDefault();let t={...(data[editing]||{}),...Object.fromEntries(new FormData(e.target))};const previous=data[editing];if(editing<0)data.push(t);else data[editing]=t;if(!save()){if(editing<0)data.pop();else data[editing]=previous;return}queueNotification(editing<0?'Aufgabe erstellt':'Aufgabe geändert',t);$('dlg').close()};function removeTask(i){if(confirm('Lokalen Eintrag löschen?')){const [t]=data.splice(i,1);if(save())queueNotification('Lokale Aufgabe gelöscht',t);else data.splice(i,0,t)}}['q','filter','person','priority'].forEach(id=>$(id).oninput=render);
+function parse(s){s=s.replace(/^\uFEFF/,'');let first=s.split(/\r?\n/)[0],sep=first.includes('\t')?'\t':first.includes(';')?';':',';let rows=[],row=[],cell='',quoted=false;for(let i=0;i<s.length;i++){let c=s[i];if(c==='"'){if(quoted&&s[i+1]==='"'){cell+='"';i++}else quoted=!quoted}else if(c===sep&&!quoted){row.push(cell);cell=''}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&s[i+1]==='\n')i++;row.push(cell);rows.push(row);row=[];cell=''}else cell+=c}if(row.length||cell){row.push(cell);rows.push(row)}let head=rows.shift()||[];return rows.filter(r=>r.some(Boolean)).map(r=>Object.fromEntries(head.map((h,i)=>[h.trim(),r[i]||''])))}const norm=s=>String(s||'').trim().toLowerCase();function map(t){let x=Object.fromEntries(Object.entries(t).map(([k,v])=>[norm(k),v]));let get=(...ks)=>String(ks.map(k=>x[norm(k)]).find(v=>v!==undefined&&v!==null&&v!=='')??'').trim();let raw=get('status','zustand','state'),s=norm(raw),status=statuses.find(v=>norm(v)===s)||(/^(closed|approved|geschlossen|abgeschlossen|genehmigt)$/.test(s)?'Erledigt':/^(open|new|neu|offen)$/.test(s)?'Offen':/^(in progress|in bearbeitung)$/.test(s)?'In Arbeit':/^(ready for review|zur prüfung)$/.test(s)?'Zur Kontrolle':'Unbekannt');let due=get('due','frist','fälligkeitsdatum','fällig am','deadline','due date','termin'),m=due.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})/);if(m)due=m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');else if(/^\d{4}-\d{2}-\d{2}/.test(due))due=due.slice(0,10);else due='';let priority=get('priority','priorität');return {id:get('id','nummer','hinweisnummer','aufgabennummer','task id','task number','nr.','nr')||'IMPORT-'+crypto.randomUUID(),project:get('project','projekt','projektname'),title:get('title','titel','betreff','aufgabe','pendenz','subject','name','typ'),description:get('description','beschreibung','nachricht','text','anmerkung'),location:get('location','ort','verortung','standort','gebäude','ebene','plan'),owner:get('owner','zuständig','verantwortlich','verantwortlichkeit','verantwortlicher','assigned to','empfänger'),due,status,priority:priorities.find(v=>norm(v)===norm(priority))||'Unbekannt',note:get('note','bemerkung','massnahme'),link:get('link','url','dalux-link'),original:t.original||t}}$('import').onchange=async e=>{let file=e.target.files[0];if(!file)return;try{let s=await file.text(),r=file.name.toLowerCase().endsWith('.json')?JSON.parse(s):parse(s);if(!Array.isArray(r)||!r.length)throw Error('Keine Datensätze gefunden');if(r.some(t=>!t||typeof t!=='object'||Array.isArray(t)))throw Error('Ungültige Datensätze');let mapped=r.map(row=>({...row,...map(row),workflow:row.workflow}));if(!mapped.some(t=>t.title||t.description))throw Error('Keine Aufgaben-/Beschreibungsspalte erkannt. Bitte Spaltenüberschriften prüfen.');if(!confirm(`${mapped.length} Datensätze importieren? Bestehende gleiche Nummern und Projekte werden aktualisiert.`))return;await reportReady; const records=mapped.filter(t=>t.workflow||t.locationEvidence);if(records.length)await reportStorage('readwrite',store=>{let last;for(const t of records){if(t.workflow)last=store.put(t.workflow,taskKey(t));if(t.locationEvidence)last=store.put(t.locationEvidence,locationKey(t))}return last}); for(let t of mapped){let i=data.findIndex(v=>v.id===t.id&&v.project===t.project);if(i<0)data.push(t);else data[i]={...data[i],...t,workflow:t.workflow||data[i].workflow}}if(!save())return;queueNotification('Aufgaben importiert',null,`${mapped.length} Aufgabeneinträge verarbeitet.`);alert(`${mapped.length} Datensätze verarbeitet. Bitte unbekannte Status, Fristen und Spaltenzuordnungen kontrollieren.`)}catch(err){alert(err.message)}finally{e.target.value=''}};function download(name,s,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}function backup(){download('Navolta_Pendenzen_'+today()+'.json',JSON.stringify(data,null,2),'application/json')}function csvout(){let keys=['id','project','title','location','owner','due','status','sourceStatus','priority','description','measure','reportedBy','reportedOn','link'];let quote=v=>'"'+String(v??'').replace(/^[=+\-@]/,"'$&").replace(/"/g,'""')+'"';download('Navolta_Pendenzen_'+today()+'.csv','\uFEFF'+[keys.join(';'),...data.map(t=>keys.map(k=>quote(({status:statusFor(t),measure:measure(t),reportedBy:t.workflow?.by,reportedOn:t.workflow?.date})[k]??t[k])).join(';'))].join('\r\n'),'text/csv;charset=utf-8')}function mail(){let body='Guten Tag\n\nPendenzenstatus '+today()+'\n'+$('summary').textContent+'\n\n'+data.filter(t=>t.status!=='Erledigt').map(t=>`${t.id} | ${t.title} | ${t.owner||'Nicht zugeteilt'} | ${t.due||'Keine Frist'} | ${t.status}`).join('\n');location.href='mailto:info@navolta.ch,se@navolta.ch,ab@navolta.ch?subject='+encodeURIComponent('Pendenzenstatus '+today())+'&body='+encodeURIComponent(body)}
+const seed=JSON.parse($('seed').textContent);
+for(const t of seed){
+  const i=data.findIndex(v=>v.id===t.id&&v.project===t.project);
+  if(i<0)data.push(t);
+  else data[i]={...t,...data[i],sourceMedia:t.sourceMedia};
+}
+let reportIndex=-1;
+let pendingPhotoFiles=[];
+let photosBusy=false;
+const validImage=s=>typeof s==='string'&&/^data:image\/(jpeg|png|webp);base64,[a-z0-9+/]+=*$/i.test(s);
+const photoHTML=(photos=[])=>photos.filter(validImage).map((s,i)=>`<img src="${s}" alt="Erledigungsnachweis ${i+1}">`).join('');
+function db(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open('navolta-pendenzencockpit',1);
+    req.onupgradeneeded=()=>req.result.createObjectStore('reports');
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+async function reportStorage(mode,work){
+  const database=await db();
+  try{
+    return await new Promise((resolve,reject)=>{
+      const tx=database.transaction('reports',mode);
+      const req=work(tx.objectStore('reports'));
+      tx.oncomplete=()=>resolve(req.result);
+      tx.onerror=tx.onabort=()=>reject(tx.error||req.error);
+    });
+  }finally{database.close()}
+}
+const taskKey=t=>JSON.stringify([t.project,t.id]);
+let reportReady;
+async function storeWorkflow(t,w){
+  await reportReady;
+  await reportStorage('readwrite',store=>store.put(w,taskKey(t)));
+  t.workflow=w;
+  render();
+}
+async function loadWorkflows(){
+  try{
+    const [keys,values]=await Promise.all([reportStorage('readonly',s=>s.getAllKeys()),reportStorage('readonly',s=>s.getAll())]);
+    const reports=new Map(keys.map((key,i)=>[key,values[i]]));
+    data.forEach(t=>{if(reports.has(taskKey(t)))t.workflow=reports.get(taskKey(t));if(reports.has(locationKey(t)))t.locationEvidence=reports.get(locationKey(t))});
+    render();
+  }catch(e){$('notice').hidden=false;$('notice').textContent+=' · Lokaler Nachweisspeicher nicht verfügbar.'}
+}
+function showReport(i){
+  reportIndex=i;
+  pendingPhotoFiles=[];
+  $('reportForm').reset();
+  $('reportError').textContent='';
+  $('photoPreview').textContent='';
+  $('reportContext').textContent=data[i].id+' · '+taskTitle(data[i]);
+  $('reportForm').elements.date.value=today();
+  $('reportForm').elements.date.max=today();
+  $('reportForm').elements.by.value=data[i].workflow?.by||'';
+  $('reportDlg').showModal();
+}
+async function compress(file){
+  const url=URL.createObjectURL(file);
+  try{
+    const img=new Image();
+    img.src=url;
+    await img.decode();
+    const scale=Math.min(1,1500/Math.max(img.width,img.height));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(img.width*scale));
+    canvas.height=Math.max(1,Math.round(img.height*scale));
+    canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+    return canvas.toDataURL('image/jpeg',.77);
+  }finally{URL.revokeObjectURL(url)}
+}
+for(const id of ['photos','camera']) $(id).onchange=async e=>{
+  if(photosBusy)return;
+  photosBusy=true;
+  const form=$('reportForm'),submit=form.querySelector('[type=submit]');
+  submit.disabled=true;
+  const selection=[...e.target.files];
+  try{
+    if(selection.length+pendingPhotoFiles.length>12)throw Error('Pro Abmeldung sind bis zu 12 Fotos möglich.');
+    for(const f of selection)pendingPhotoFiles.push(await compress(f));
+    $('reportError').textContent='';
+  }catch(error){$('reportError').textContent=error.message||'Foto konnte nicht geöffnet werden.'}
+  finally{
+    $('photoPreview').innerHTML=pendingPhotoFiles.map((s,i)=>`<div><img src="${s}" alt="Foto ${i+1}"><br><button type="button" class="alt" data-photo="${i}">Entfernen</button></div>`).join('');
+    e.target.value='';
+    photosBusy=false;
+    submit.disabled=false;
+  }
+};
+$('photoPreview').onclick=e=>{
+  const b=e.target.closest('[data-photo]');
+  if(!b||photosBusy)return;
+  pendingPhotoFiles.splice(Number(b.dataset.photo),1);
+  $('photoPreview').innerHTML=pendingPhotoFiles.map((s,i)=>`<div><img src="${s}" alt="Foto ${i+1}"><br><button type="button" class="alt" data-photo="${i}">Entfernen</button></div>`).join('');
+};
+$('reportForm').onsubmit=async e=>{
+  e.preventDefault();
+  const t=data[reportIndex];
+  if(!t||statusFor(t)==='Erledigt'||statusFor(t)==='Zur Kontrolle')return;
+  const fields=Object.fromEntries(new FormData(e.target));
+  if(!fields.by.trim()||!fields.work.trim()||!pendingPhotoFiles.length){$('reportError').textContent='Name, ausgeführte Massnahme und mindestens ein Foto erfassen.';return}
+  const submit=e.target.querySelector('[type=submit]');
+  submit.disabled=true;
+  try{
+    const previous=t.workflow;
+    const history=previous?[...(previous.history||[]),{...previous,history:undefined}]:[];
+    await storeWorkflow(t,{status:'Zur Kontrolle',by:fields.by.trim(),date:fields.date,work:fields.work.trim(),photos:[...pendingPhotoFiles],submittedAt:new Date().toISOString(),history});
+    queueNotification('Mangel zur Prüfung gemeldet',t);
+    $('reportDlg').close();
+    showDetail(reportIndex);
+  }catch(e){$('reportError').textContent='Speicherung fehlgeschlagen. Der Nachweis ist weiterhin im Formular verfügbar.'}
+  finally{submit.disabled=false}
+};
+const detailFields=(t)=>[
+  ['Standort',taskLocation(t)],['Zuständig',t.owner],['Frist',t.due],['Priorität',t.priorityNote?t.priority+' · '+t.priorityNote:t.priority],
+  ['Dalux-Status',t.sourceStatus],['Beschreibung',t.description],['Massnahme',measure(t)],['Kommentare und Verlauf',t.comments]
+].filter(([,v])=>v).map(([k,v])=>`<p><strong>${esc(k)}</strong><br><span class="detailText">${esc(v)}</span></p>`).join('');
+function showDetail(i){
+  const t=data[i],w=t.workflow;
+  const safeLink=/^https:\/\//i.test(t.link||'')?t.link:'';
+  const allowedMedia=(t.sourceMedia||[]).filter(x=>/^https:\/\/com-bim-bin\.s3\.amazonaws\.com\//.test(x));
+  $('detailBody').innerHTML=`<h2>${esc(t.id)} · ${esc(taskTitle(t))}</h2><p>${esc(t.project)} · ${esc(statusFor(t))}</p>${detailFields(t)}${locationPhotos(t)?'<h3>Standortfotos</h3><div class="photoGrid">'+locationPhotos(t)+'</div>':""}${allowedMedia.length?`<h3>Dalux-Bilder zum Standort</h3><div class="photoGrid">${allowedMedia.map((u,i)=>`<a target="_blank" rel="noopener noreferrer" href="${esc(u)}"><img loading="lazy" referrerpolicy="no-referrer" src="${esc(u)}" alt="Dalux-Foto ${i+1}"></a>`).join('')}</div>`:''}${w?`<h3>Erledigungsnachweis</h3><p>${esc(w.by)} · ${esc(w.date)}</p><p class="detailText">${esc(w.work)}</p><div class="photoGrid">${photoHTML(w.photos)}</div>${w.reviewBy?`<p>Geprüft durch ${esc(w.reviewBy)} · ${esc(w.reviewDate)}<br>${esc(w.reviewNote)}</p>`:''}<button class="alt" id="proofPrint">Nachweis als PDF</button>`:''}${w?.status==='Zur Kontrolle'&&t.status!=='Erledigt'?`<form id="reviewForm"><h3>Prüfentscheid</h3><label>Geprüft von<input name="reviewBy" required></label><label>Bemerkung<textarea name="reviewNote"></textarea></label><div class="toolbar"><button type="submit" value="Erledigt">Abmeldung bestätigen</button><button type="submit" value="Nacharbeit" class="alt">Nacharbeit anfordern</button></div><div id="reviewError" role="alert" class="red"></div></form>`:''}<div class="toolbar"><button class="alt" id="editLocation">Standort und Fotos erfassen</button>${safeLink?`<a class="btn" target="_blank" rel="noopener" href="${esc(safeLink)}">Projekt in Dalux ↗</a>`:''}${t.source!=='Dalux'?'<button class="alt" id="editLocal">Bearbeiten</button>':''}${statusFor(t)!=='Erledigt'&&statusFor(t)!=='Zur Kontrolle'?'<button id="detailReport">Abmelden</button>':''}</div>`;
+  $('editLocation').onclick=()=>showLocation(i);
+  if($('proofPrint'))$('proofPrint').onclick=()=>printProof(t);
+  if($('editLocal'))$('editLocal').onclick=()=>{$('detailDlg').close();edit(i)};
+  if($('detailReport'))$('detailReport').onclick=()=>{$('detailDlg').close();showReport(i)};
+  if($('reviewForm'))$('reviewForm').onsubmit=async e=>{
+    e.preventDefault();
+    const fields=Object.fromEntries(new FormData(e.target)), status=e.submitter.value;
+    if(!fields.reviewBy.trim()||(status==='Nacharbeit'&&!fields.reviewNote.trim())){$('reviewError').textContent='Name und bei Nacharbeit eine Begründung erfassen.';return}
+    const buttons=e.target.querySelectorAll('button');
+    buttons.forEach(b=>b.disabled=true);
+    try{await storeWorkflow(t,{...w,status,...fields,reviewDate:today()});queueNotification(status==='Erledigt'?'Abmeldung bestätigt':'Nacharbeit angefordert',t);showDetail(i)}
+    catch(e){$('reviewError').textContent='Prüfentscheid konnte nicht gespeichert werden.';buttons.forEach(b=>b.disabled=false)}
+  };
+  if(!$('detailDlg').open)$('detailDlg').showModal();
+}
+$('rows').onclick=e=>{
+  const b=e.target.closest('[data-action]');
+  if(b)(b.dataset.action==='report'?showReport:showDetail)(Number(b.dataset.i));
+};
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>{
+  if(b.dataset.close==='reportDlg'&&photosBusy)return;
+  $(b.dataset.close).close();
+});
+document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{view=b.dataset.view;$('filter').value='';render()});
+const printLogo=()=>document.querySelector('.brand').outerHTML;
+function printSection(html){
+  $('printReport').innerHTML=printLogo()+html;
+  const active=document.querySelector('dialog[open]');
+  if(active){active.close();window.addEventListener('afterprint',()=>active.showModal(),{once:true})}
+  document.body.classList.add('report-print');
+  requestAnimationFrame(()=>requestAnimationFrame(()=>window.print()));
+}
+window.addEventListener('afterprint',()=>document.body.classList.remove('report-print'));
+function printProof(t){
+  const w=t.workflow;
+  printSection(`<h1>Mängelabmeldung</h1><h2>${esc(t.id)} · ${esc(taskTitle(t))}</h2><p>${esc(t.project)} · ${esc(statusFor(t))}</p>${detailFields(t)}${locationPhotos(t)?'<h3>Standortfotos</h3><div class="photoGrid">'+locationPhotos(t)+'</div>':""}<h3>Ausgeführte Massnahme</h3><p>${esc(w.by)} · ${esc(w.date)}</p><p class="detailText">${esc(w.work)}</p>${w.reviewBy?`<p>Geprüft durch ${esc(w.reviewBy)} · ${esc(w.reviewDate)} · ${esc(w.reviewNote)}</p>`:''}<h3>Fotonachweis</h3><div class="photoGrid">${photoHTML(w.photos)}</div>`);
+}
+function managementPrint(){
+  const selected=[...data].filter(t=>statusFor(t)!=='Erledigt').sort((a,b)=>Number(critical(b))-Number(critical(a))||(a.due||'9999').localeCompare(b.due||'9999'));
+  printSection(`<h1>Managementbericht</h1><p>Stand ${today()}</p><p>${data.length} erfasst · ${data.filter(lateFor).length} überfällig · ${data.filter(critical).length} kritisch · ${data.filter(t=>statusFor(t)==='Zur Kontrolle').length} zur Prüfung</p><h2>Massnahmen- und Terminplan</h2>${selected.map(t=>`<article><strong>${esc(t.id)} · ${esc(taskTitle(t))}</strong><br>${esc(t.owner||'Zuständigkeit offen')} · ${esc(t.due||'Frist offen')} · ${esc(statusFor(t))}<br>${esc(measure(t))}</article>`).join('')||'<p>Keine offenen Aufgaben in der gewählten Ansicht.</p>'}`);
+}
+const locationKey=t=>'location:'+taskKey(t);
+const taskLocation=t=>t.locationEvidence?.label||t.location||'';
+const locationPhotos=t=>photoHTML(t.locationEvidence?.photos);
+function showLocation(i){
+  const t=data[i];
+  const form=$('locationForm');
+  form.reset();
+  form.elements.label.value=taskLocation(t);
+  $('locationContext').textContent=t.id+' · '+taskTitle(t);
+  $('locationError').textContent='';
+  $('locationExisting').innerHTML=locationPhotos(t);
+  $('detailDlg').close();
+  $('locationDlg').showModal();
+  form.onsubmit=async e=>{
+    e.preventDefault();
+    const label=form.elements.label.value.trim();
+    if(!label){$('locationError').textContent='Standort, Geschoss oder Raum angeben.';return}
+    const files=[...form.elements.album.files,...form.elements.capture.files];
+    const before=t.locationEvidence?.photos||[];
+    if(files.length+before.length>12){$('locationError').textContent='Pro Standort sind bis zu 12 Fotos möglich.';return}
+    const button=form.querySelector('[type=submit]');
+    button.disabled=true;
+    try{
+      const photos=[...before];
+      for(const f of files)photos.push(await compress(f));
+      const evidence={label,photos,date:today()};
+      await reportReady;
+      await reportStorage('readwrite',store=>store.put(evidence,locationKey(t)));
+      t.locationEvidence=evidence;
+      render();
+      queueNotification('Standort aktualisiert',t,'Standort: '+label);
+      $('locationDlg').close();
+      showDetail(i);
+    }catch(e){$('locationError').textContent='Speicherung fehlgeschlagen. Prüfe die ausgewählten Bilddateien.'}
+    finally{button.disabled=false}
+  };
+}
+
+render();
+reportReady=loadWorkflows();
+function zipEntries(entries){
+  const encoder=new TextEncoder(), local=[], central=[];
+  const crcTable=Uint32Array.from({length:256},(_,n)=>{
+    for(let i=0;i<8;i++)n=(n>>>1)^((n&1)?0xedb88320:0);
+    return n>>>0;
+  });
+  let offset=0,totalCentral=0;
+  function header(length,signature){
+    const bytes=new Uint8Array(length),view=new DataView(bytes.buffer);
+    view.setUint32(0,signature,true);
+    return {bytes,u16:(at,v)=>view.setUint16(at,v,true),u32:(at,v)=>view.setUint32(at,v,true)};
+  }
+  for(const [file,body] of Object.entries(entries)){
+    const name=encoder.encode(file), bytes=encoder.encode(body);
+    let crc=0xffffffff;
+    for(const b of bytes)crc=(crc>>>8)^crcTable[(crc^b)&255];
+    crc=(crc^0xffffffff)>>>0;
+    const l=header(30,0x04034b50);
+    l.u16(4,20);l.u16(12,33);l.u32(14,crc);l.u32(18,bytes.length);l.u32(22,bytes.length);l.u16(26,name.length);
+    const c=header(46,0x02014b50);
+    c.u16(4,20);c.u16(6,20);c.u16(14,33);c.u32(16,crc);c.u32(20,bytes.length);c.u32(24,bytes.length);c.u16(28,name.length);c.u32(42,offset);
+    local.push(l.bytes,name,bytes);
+    central.push(c.bytes,name);
+    offset+=30+name.length+bytes.length;
+    totalCentral+=46+name.length;
+  }
+  const end=header(22,0x06054b50);
+  const count=Object.keys(entries).length;
+  end.u16(8,count);end.u16(10,count);end.u32(12,totalCentral);end.u32(16,offset);
+  return new Blob([...local,...central,end.bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+function buildExcel(tasks){
+  const main='http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  const office='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const pkg='http://schemas.openxmlformats.org/package/2006/relationships';
+  const ct='http://schemas.openxmlformats.org/package/2006/content-types';
+  const rowTitle=['Nummer','Projekt','Titel','Ort','Zuständig','Frist','Cockpit-Status','Dalux-Status','Priorität','Überfällig','Beschreibung','Massnahme','Gemeldet von','Erledigt am','Ausgeführte Arbeit','Prüfentscheid','Bemerkung zur Prüfung','Dalux'];
+  const toRow=t=>[t.id,t.project,taskTitle(t),taskLocation(t),t.owner,t.due,statusFor(t),t.sourceStatus,t.priority,lateFor(t)?'Ja':'',t.description,measure(t),t.workflow?.by,t.workflow?.date,t.workflow?.work,t.workflow?.status,t.workflow?.reviewNote,t.link];
+  const sheet=rows=>`<worksheet xmlns="${main}"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetData>${rows.map((r,i)=>`<row r="${i+1}">${r.map((cell,j)=>`<c r="${String.fromCharCode(65+j)}${i+1}" t="inlineStr"><is><t xml:space="preserve">${esc(String(cell??'').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/g,''))}</t></is></c>`).join('')}</row>`).join('')}</sheetData><autoFilter ref="A1:R${rows.length}"/></worksheet>`;
+  return zipEntries({
+    '[Content_Types].xml':`<Types xmlns="${ct}"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`,
+    '_rels/.rels':`<Relationships xmlns="${pkg}"><Relationship Id="rId1" Type="${office}/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+    'xl/workbook.xml':`<workbook xmlns="${main}" xmlns:r="${office}"><sheets><sheet name="Aufgaben" sheetId="1" r:id="rId1"/><sheet name="Terminplan" sheetId="2" r:id="rId2"/></sheets></workbook>`,
+    'xl/_rels/workbook.xml.rels':`<Relationships xmlns="${pkg}"><Relationship Id="rId1" Type="${office}/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="${office}/worksheet" Target="worksheets/sheet2.xml"/></Relationships>`,
+    'xl/worksheets/sheet1.xml':sheet([rowTitle,...tasks.map(toRow)]),
+    'xl/worksheets/sheet2.xml':sheet([rowTitle,...tasks.filter(t=>statusFor(t)!=='Erledigt').sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999')).map(toRow)])
+  });
+}
+function excelOut(){download('Navolta_Pendenzen_'+today()+'.xlsx',buildExcel(data),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}
+const notificationRecipients='info@navolta.ch,se@navolta.ch,ab@navolta.ch';
+const notificationKey='navolta-pendenzen-mail-v1';
+let pendingNotifications=[];
+try{pendingNotifications=JSON.parse(localStorage.getItem(notificationKey)||'[]')}catch{}
+if(!Array.isArray(pendingNotifications))pendingNotifications=[];
+function renderNotifications(){
+  const box=$('notificationQueue');
+  const count=pendingNotifications.length;
+  $('notificationCount').textContent=count?`${count} E-Mail-${count===1?'Entwurf':'Entwürfe'} bereit`:'Keine offenen E-Mail-Entwürfe';
+  box.innerHTML=pendingNotifications.map((message,i)=>`<div class="mailRow"><div><strong>${esc(message.subject)}</strong><br><small>${esc(message.date)}</small></div><a class="btn" href="${esc(notificationLink(message))}">E-Mail öffnen</a><button type="button" class="alt" data-sent="${i}">Als versendet markieren</button></div>`).join('');
+}
+function notificationLink(message){
+  return 'mailto:'+notificationRecipients+'?subject='+encodeURIComponent(message.subject)+'&body='+encodeURIComponent(message.body);
+}
+function persistNotifications(){
+  try{localStorage.setItem(notificationKey,JSON.stringify(pendingNotifications));return true}
+  catch(e){$('notificationError').textContent='Entwurf konnte nicht dauerhaft gespeichert werden. Bitte E-Mail vor dem Schliessen öffnen.';return false}
+}
+function queueNotification(event,t,detail=''){
+  const status=t?statusFor(t):'';
+  const description=t?[t.project,t.id+' · '+taskTitle(t),'Cockpit-Status: '+status].filter(Boolean):[];
+  const message={
+    subject:'Pendenzencockpit · '+event+(t?' · '+t.id:''),
+    date:today(),
+    body:['Guten Tag','','Im Navolta-Pendenzencockpit wurde ein Update erfasst.','',event,...description,detail,'','Freundliche Grüsse','Navolta AG'].filter((line,i)=>line||[1,3,4+description.length,6+description.length].includes(i)).join('\r\n')
+  };
+  pendingNotifications.unshift(message);
+  persistNotifications();
+  renderNotifications();
+  $('notificationPanel').open=true;
+}
+$('notificationQueue').onclick=e=>{
+  const b=e.target.closest('[data-sent]');
+  if(!b)return;
+  const i=Number(b.dataset.sent);
+  const [message]=pendingNotifications.splice(i,1);
+  if(!persistNotifications())pendingNotifications.splice(i,0,message);
+  renderNotifications();
+};
+renderNotifications();
+</script></html>
