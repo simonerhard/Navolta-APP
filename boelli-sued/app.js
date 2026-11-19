@@ -30,6 +30,11 @@ function shown(){return projectRows.filter(x=>(!filters.group || x.group===filte
 function opts(options,value){return options.map(([key,label])=>'<option value="'+escapeHTML(key)+'"'+(key===value?' selected':'')+'>'+escapeHTML(label)+'</option>').join('');}
 function render(){
  for(const button of document.querySelectorAll('nav button')){button.classList.toggle('active',button.dataset.view===view);button.setAttribute('aria-current',button.dataset.view===view?'page':'false');}
+ if(view==='items' && !BrowserProject.imported && !projectRows.length){
+  $('content').innerHTML='<section class="simple"><h2>Projektpaket laden</h2><p>Importiere das Bölli-Süd-Projektpaket als ZIP-Datei. Danach findest du hier die Pendenzen und unter «Unterlagen» die Pläne und Berichte.</p><button id="firstItem">Mangel manuell hinzufügen</button></section>';
+  $('firstItem').onclick=addItem;
+  return;
+ }
  if(view==='history'){
   const entries=data.history.filter(x=>x.project===project);
   $('content').innerHTML='<section class="simple">'+(entries.map(e=>'<div class="event"><strong>'+escapeHTML(e.action)+' · '+escapeHTML(e.title)+'</strong><br><small>'+escapeHTML(formatTime(e.at))+' · '+escapeHTML(e.actor)+(e.id?' · '+escapeHTML(e.id):'')+'</small>'+(e.info?'<div>'+escapeHTML(e.info)+'</div>':'')+'</div>').join('')||'<p>Noch keine Änderungen erfasst.</p>')+'</section>';
@@ -170,7 +175,7 @@ function showCloseout(){
  $('exportExcel').onclick=()=>run('xlsx');$('exportPdf').onclick=()=>run('pdf');
  if($('exportSend'))$('exportSend').onclick=()=>run('send');
 }
-$('help').onclick=()=>dialog('Kurzanleitung für die Bauleitung','<ol class="help"><li>Wähle bei <strong>Pendenzen</strong> die Herkunft und das Haus aus. Öffne den Mangel, den du bearbeitest.</li><li>Halte unter <strong>Bemerkung</strong> fest, was du erledigt hast oder was noch fehlt.</li><li>Falls ein Bild hilft, tippe auf <strong>Kamera</strong> oder <strong>Galerie</strong>. Fotos sind freiwillig.</li><li>Tippe auf <strong>Als erledigt abhaken</strong>. Unter <strong>Verlauf</strong> siehst du, wer wann etwas geändert hat.</li><li>Wenn alle Punkte abgehakt sind, öffne <strong>Abschluss</strong>. Dort kannst du Excel und PDF erstellen und an die beiden Navolta-Adressen versenden.</li></ol>');
+$('help').onclick=()=>dialog('Kurzanleitung für die Bauleitung','<ol class="help"><li>Lade das Bölli-Süd-Projektpaket herunter und wähle die ZIP-Datei über <strong>Projektpaket importieren</strong>. Das Paket bleibt in diesem Browser gespeichert.</li><li>Filtere unter <strong>Pendenzen</strong> nach Haus oder Herkunft und öffne den Mangel.</li><li>Erfasse bei Bedarf eine <strong>Bemerkung</strong> und füge über <strong>Kamera</strong> oder <strong>Galerie</strong> ein Foto hinzu. Fotos sind freiwillig.</li><li>Tippe auf <strong>Als erledigt abhaken</strong>. Die Änderung erscheint im <strong>Verlauf</strong>.</li><li>Unter <strong>Abschluss</strong> kannst du Excel und PDF herunterladen. Sind alle Pendenzen erledigt, kannst du zusätzlich eine E-Mail-Datei mit beiden Anhängen erstellen und in Outlook öffnen.</li></ol>');
 $('closeout').onclick=showCloseout;
 document.querySelectorAll('nav [data-view]').forEach(button=>button.onclick=()=>{view=button.dataset.view;if(data)render();});
 $('importProject').onclick=()=>$('projectFile').click();
