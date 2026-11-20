@@ -636,15 +636,15 @@ function saveEml(report,pdf) {
 const redirectUri = () => new URL("./",location.href).href;
 const base64url = bytes => base64(bytes).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const nonce = () => base64url(crypto.getRandomValues(new Uint8Array(32)));
-const scope = "https://graph.microsoft.com/Mail.Send";
+const scope = "https://graph.microsoft.com/Mail.ReadWrite";
 const hasToken = () => Boolean(accessToken && expires > Date.now()+60000);
-async function connectMicrosoft(continueToMail) {
+async function connectMicrosoft() {
   const {tenant,client}=state.mail;
   const verifier=nonce();
   const expectedState=nonce();
   const challenge=base64url(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(verifier))));
   const redirect=redirectUri();
-  sessionStorage.setItem(AUTH,JSON.stringify({tenant,client,verifier,expectedState,redirect,continueToMail,when:Date.now()}));
+  sessionStorage.setItem(AUTH,JSON.stringify({tenant,client,verifier,expectedState,redirect,when:Date.now()}));
   const params=new URLSearchParams({client_id:client,response_type:"code",redirect_uri:redirect,scope,state:expectedState,code_challenge:challenge,code_challenge_method:"S256",response_mode:"query"});
   location.assign("https://login.microsoftonline.com/"+tenant+"/oauth2/v2.0/authorize?"+params);
 }
@@ -665,18 +665,17 @@ async function finishOAuth() {
     accessToken=token.access_token;
     expires=Date.now()+Number(token.expires_in)*1000;
     notify("Microsoft 365 ist für diese Sitzung verbunden.");
-    if (pending.continueToMail && !$("mail").disabled) showMail();
   } catch(error) {
     notify(error.message || "Microsoft 365 konnte nicht verbunden werden.",true);
   }
 }
-function mailSettings(continueToMail=false) {
+function mailSettings() {
   const enabled=location.protocol==="https:" || location.hostname==="localhost" || location.hostname==="127.0.0.1";
-  openDialog("E-Mail mit Microsoft 365",
-    '<p class="intro">'+(hasToken()?'Microsoft 365 ist für diese Sitzung verbunden.':'Für den direkten Versand braucht es eine Microsoft-Entra-App der Navolta AG und eine Anmeldung mit dem Geschäftsaccount.')+'</p>'+
+  openDialog("Outlook im Browser verbinden",
+    '<p class="intro">'+(hasToken()?'Microsoft 365 ist für diese Sitzung verbunden.':'Für Entwürfe direkt im Outlook-Postfach braucht es eine Microsoft-Entra-App der Navolta AG und die Anmeldung mit dem Geschäftsaccount.')+'</p>'+
     '<form id="mailConfig"><div class="field"><label for="tenant">Verzeichnis-ID oder verifizierte Microsoft-365-Domain</label><input id="tenant" autocomplete="off" maxlength="100" required value="'+escapeHtml(state.mail.tenant || "")+'"></div>'+
     '<div class="field"><label for="client">Anwendungs-ID (Client-ID)</label><input id="client" autocomplete="off" maxlength="36" required value="'+escapeHtml(state.mail.client || "")+'"></div>'+
-    '<details><summary>Angaben für die IT</summary><p>In Microsoft Entra eine App für das eigene Organisationsverzeichnis registrieren. Als Plattform «Single-Page Application» wählen und die folgende Weiterleitungs-URI hinterlegen.</p><p><code>'+escapeHtml(redirectUri())+'</code></p><p>Unter Microsoft Graph die delegierte Berechtigung <code>Mail.Send</code> hinzufügen und bei Bedarf freigeben. Die App verwendet kein Clientgeheimnis.</p></details>'+
+    '<details><summary>Angaben für die IT</summary><p>In Microsoft Entra eine App für das eigene Organisationsverzeichnis registrieren. Als Plattform «Single-Page Application» wählen und die folgende Weiterleitungs-URI hinterlegen.</p><p><code>'+escapeHtml(redirectUri())+'</code></p><p>Unter Microsoft Graph die delegierte Berechtigung <code>Mail.ReadWrite</code> hinzufügen und bei Bedarf freigeben. Die App verwendet kein Clientgeheimnis.</p></details>'+
     '<p id="mailConfigError" class="alert" role="alert">'+(enabled?'':'Für die Microsoft-Anmeldung die App über HTTPS öffnen.')+'</p>'+
     '<div class="actions">'+closeButton+'<button type="submit" class="primary" '+(enabled?'':'disabled')+'>Mit Microsoft 365 verbinden</button></div></form>');
   $("mailConfig").onsubmit=async event=>{
@@ -692,105 +691,88 @@ function mailSettings(continueToMail=false) {
     if (!save({...state,mail:{tenant,client}})) return;
     accessToken="";
     event.submitter.disabled=true;
-    try { await connectMicrosoft(continueToMail); }
+    try { await connectMicrosoft(); }
     catch(error) {
       event.submitter.disabled=false;
       $("mailConfigError").textContent="Die Anmeldung konnte nicht gestartet werden. Browser und sichere Verbindung prüfen.";
     }
   };
 }
-function outlookComposeUrl(report) {
-  const fields = {to:RECIPIENTS.join(";"),subject:subjectFor(report),body:bodyFor(report).replace(/\n/g,"\r\n")};
-  const query = Object.entries(fields).map(([name,value])=>name+"="+encodeURIComponent(value)).join("&");
-  return "https://outlook.office.com/mail/deeplink/compose?"+query;
+let preparingMail=false;
+async function createOutlookDraft(report,pdf) {
+  const result=await fetch("https://graph.microsoft.com/v1.0/me/messages",{
+    method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
+    body:JSON.stringify({
+      subject:subjectFor(report),
+      body:{contentType:"Text",content:bodyFor(report)},
+      toRecipients:RECIPIENTS.map(address=>({emailAddress:{address}})),
+      attachments:[{"@odata.type":"#microsoft.graph.fileAttachment",name:report.filename,contentType:"application/pdf",contentBytes:base64(pdf)}]
+    })
+  });
+  if (result.status===401) {
+    accessToken="";
+    throw new Error("Die Microsoft-Anmeldung ist abgelaufen. Outlook erneut verbinden oder die E-Mail-Datei herunterladen.");
+  }
+  if (result.status===403) throw new Error("Outlook konnte den Entwurf nicht speichern. Bitte die Freigabe für Mail.ReadWrite prüfen.");
+  if (result.status!==201) throw new Error("Outlook hat den Entwurf nicht bestätigt. Vor einem erneuten Versuch den Ordner «Entwürfe» prüfen.");
+  const message=await result.json();
+  const fallback="https://outlook.office.com/mail/drafts";
+  try {
+    const url=new URL(message.webLink);
+    return url.protocol==="https:" && ["outlook.office.com","outlook.office365.com"].includes(url.hostname) ? url.href : fallback;
+  } catch { return fallback; }
 }
 function openOutlook() {
   const report=reportForSelection();
-  openDialog("Monatsrapport in Outlook",
-    '<p>Outlook öffnet eine neue Nachricht an <strong>'+RECIPIENTS.join(" und ")+'</strong>. Betreff und Nachrichtentext sind vorausgefüllt.</p>'+
-    '<p>Das PDF aus den Downloads in Outlook über <strong>Anfügen → Diesen Computer durchsuchen</strong> auswählen. Anschliessend in Outlook auf <strong>Senden</strong> klicken.</p>'+
-    '<p><strong>'+escapeHtml(report.filename)+'</strong></p>'+
+  const connected=hasToken();
+  openDialog("E-Mail mit PDF-Anhang",
+    '<p><strong>An</strong><br>'+RECIPIENTS.join(", ")+'</p><p><strong>Betreff</strong><br>'+escapeHtml(subjectFor(report))+'</p>'+
+    '<p><strong>PDF-Anhang</strong><br>'+escapeHtml(report.filename)+'</p>'+
     (report.open?'<p class="alert">'+report.open+' offene Werktage sind im PDF gekennzeichnet.</p>':'')+
-    '<p id="outlookFileStatus" role="status">PDF wird erstellt …</p>'+
-    '<p><a id="outlookCompose" href="'+escapeHtml(outlookComposeUrl(report))+'" target="_blank" rel="noopener noreferrer">Outlook erneut öffnen</a></p>'+
-    '<details><summary>Weitere Versandoptionen</summary><div class="actions"><button id="outlookEml" class="secondary" type="button">E-Mail-Datei mit PDF herunterladen</button><button id="outlookDirect" class="secondary" type="button">Microsoft-365-Direktversand</button></div></details>'+
-    '<div class="actions">'+closeButton+'<button id="outlookPdf" class="primary" type="button">PDF herunterladen</button></div>');
-  const compose=$("outlookCompose");
-  const pdfButton=$("outlookPdf");
-  const emlButton=$("outlookEml");
-  const status=$("outlookFileStatus");
+    '<p id="outlookStatus" role="status">E-Mail wird vorbereitet …</p>'+
+    '<p><a id="openOutlookDraft" target="_blank" rel="noopener noreferrer" hidden>Entwurf in Outlook öffnen</a></p>'+
+    '<div class="actions">'+closeButton+'<button id="outlookEml" type="button" class="secondary">E-Mail-Datei herunterladen</button>'+
+    (connected?'':'<button id="connectOutlook" type="button" class="secondary">Outlook im Browser verbinden</button>')+'</div>');
+  const status=$("outlookStatus"), link=$("openOutlookDraft"), button=$("outlookEml"), close=$("closeDialog");
+  const connect=$("connectOutlook");
   let pdfPromise;
-  async function downloadReport(asEmail=false) {
-    const button=asEmail ? emlButton : pdfButton;
+  const getPdf=()=>pdfPromise ||= makePdf(report).catch(error=>{ pdfPromise=undefined; throw error; });
+  button.onclick=async()=>{
     button.disabled=true;
     try {
-      pdfPromise ||= makePdf(report);
-      const pdf=await pdfPromise;
-      if (asEmail) saveEml(report,pdf);
-      else download(pdf,report.filename,"application/pdf");
-      status.textContent=asEmail ? "E-Mail-Datei mit PDF bereit." : "PDF-Download gestartet.";
-    } catch {
-      pdfPromise=undefined;
-      status.textContent="Die Datei konnte nicht erstellt werden. Bitte erneut versuchen.";
-    } finally { button.disabled=false; }
-  }
-  pdfButton.onclick=()=>downloadReport();
-  emlButton.onclick=()=>downloadReport(true);
-  $("outlookDirect").onclick=showMail;
-  // Open Outlook while the click still counts as a user gesture.
-  compose.click();
-  void downloadReport();
-}
-let sending=false;
-function showMail() {
-  const report=reportForSelection();
-  openDialog("Monatsrapport einreichen",
-    '<p><strong>An</strong><br>'+RECIPIENTS.join(", ")+'</p><p><strong>Betreff</strong><br>'+escapeHtml(subjectFor(report))+'</p>'+
-    '<div class="mail-body">'+escapeHtml(bodyFor(report))+'</div><p><strong>PDF-Anhang</strong><br>'+escapeHtml(report.filename)+'</p>'+
-    (report.open?'<p class="alert">'+report.open+' offene Werktage sind im PDF gekennzeichnet.</p>':'')+
-    '<p class="intro">'+(hasToken()?'Versand über Ihr Microsoft-365-Konto.':'Für den Direktversand Microsoft 365 verbinden. Die E-Mail-Datei enthält Text, Empfänger und PDF-Anhang und lässt sich in kompatiblen Mailprogrammen wie Outlook öffnen.')+'</p>'+
-    '<p id="mailError" role="alert" class="alert"></p><div class="actions">'+closeButton+'<button type="button" id="eml" class="secondary">E-Mail-Datei herunterladen</button><button id="send" type="button" class="primary">'+(hasToken()?'E-Mail senden':'Microsoft 365 verbinden')+'</button></div>');
-  $("eml").onclick=async event=>{
-    const button=event.currentTarget;
-    const error=$("mailError");
-    button.disabled=true;
-    try { saveEml(report,await makePdf(report)); notify("E-Mail-Datei mit PDF-Anhang erstellt."); }
-    catch { error.textContent="Die E-Mail-Datei konnte nicht erstellt werden. Bitte erneut versuchen."; }
+      saveEml(report,await getPdf());
+      status.textContent="Die E-Mail-Datei (.eml) mit PDF-Anhang wurde heruntergeladen. Datei in Outlook öffnen.";
+    } catch { status.textContent="Die E-Mail-Datei konnte nicht erstellt werden. Bitte erneut versuchen."; }
     finally { button.disabled=false; }
   };
-  $("send").disabled=sending;
-  $("send").onclick=async event=>{
-    if (!hasToken()) { mailSettings(true); return; }
-    if (sending) return;
-    const button=event.currentTarget;
-    const error=$("mailError");
-    button.disabled=true;
-    $("closeDialog").disabled=true;
-    sending=true;
-    error.textContent="";
-    let sent=false;
+  if (connect) connect.onclick=mailSettings;
+  if (!connected) {
+    button.click();
+    return;
+  }
+
+  // Reserve a tab during the click so Outlook can open after saving the draft.
+  const tab=window.open("about:blank","_blank");
+  if (tab) tab.opener=null;
+  preparingMail=true;
+  button.disabled=close.disabled=true;
+  void (async()=>{
     try {
-      const pdf=await makePdf(report);
-      const result=await fetch("https://graph.microsoft.com/v1.0/me/sendMail",{
-        method:"POST",headers:{"Authorization":"Bearer "+accessToken,"Content-Type":"application/json"},
-        body:JSON.stringify({message:{subject:subjectFor(report),body:{contentType:"Text",content:bodyFor(report)},toRecipients:RECIPIENTS.map(address=>({emailAddress:{address}})),attachments:[{"@odata.type":"#microsoft.graph.fileAttachment",name:report.filename,contentType:"application/pdf",contentBytes:base64(pdf)}]},saveToSentItems:true})
-      });
-      if (result.status===401) { accessToken=""; button.textContent="Microsoft 365 verbinden"; throw new Error("Die Microsoft-Anmeldung ist abgelaufen. Bitte erneut verbinden."); }
-      if (result.status===403) throw new Error("Microsoft 365 hat den Versand verweigert. Das Konto und die Freigabe für Mail.Send prüfen.");
-      if (result.status!==202) throw new Error("Microsoft 365 hat den Versand nicht bestätigt (Status "+result.status+"). Vor einer Wiederholung die gesendeten Elemente prüfen.");
-      sent=true;
-      $("dialog").close();
-      notify("Microsoft 365 hat die E-Mail mit PDF-Anhang zum Versand angenommen.");
-    } catch(failure) {
-      error.textContent=failure instanceof TypeError?"Verbindung unterbrochen. Vor einer Wiederholung die gesendeten Elemente in Outlook prüfen.":failure.message;
+      const draftUrl=await createOutlookDraft(report,await getPdf());
+      link.href=draftUrl;
+      link.hidden=false;
+      status.textContent="Der Entwurf mit PDF wurde in Outlook gespeichert. Dort kann er geprüft und gesendet werden.";
+      if (tab && !tab.closed) tab.location.replace(draftUrl);
+    } catch(error) {
+      if (tab && !tab.closed) tab.close();
+      status.textContent=error instanceof TypeError ? "Die Verbindung wurde unterbrochen. Bitte in Outlook unter «Entwürfe» nachsehen oder die E-Mail-Datei herunterladen." : error.message;
     } finally {
-      sending=false;
-      button.disabled=sent;
-      if ($("closeDialog")) $("closeDialog").disabled=false;
+      preparingMail=false;
+      button.disabled=close.disabled=false;
     }
-  };
+  })();
 }
-$("dialog").addEventListener("cancel",event=>{if(sending) event.preventDefault();});
+$("dialog").addEventListener("cancel",event=>{if(preparingMail) event.preventDefault();});
 $("month").replaceChildren(...MONTHS.map((month,index)=>new Option(month,index+1)));
 $("employee").onchange=event=>updateSelection({selected:event.target.value});
 $("month").onchange=event=>updateSelection({month:Number(event.target.value)});
@@ -816,7 +798,7 @@ $("mailSettings").onclick=()=>mailSettings();
 $("gavSettings").onclick=editGavSettings;
 $("vacationSettings").onclick=editVacationSettings;
 $("help").onclick=()=>openDialog("Anleitung",
-  '<ol><li>Mit dem Plus ein Mitarbeiterprofil mit Vor- und Nachnamen erstellen. Anschliessend Monat und Jahr auswählen.</li><li>Beim gewünschten Datum <strong>Erfassen</strong> wählen. Bis zu vier Arbeitsblöcke angeben. Unterbrüche zwischen den Blöcken fliessen automatisch in die Nettozeit ein. Pausen innerhalb eines Blocks als zusätzliche Minuten eintragen.</li><li>Ferien, Krankheit oder andere Abwesenheiten mit Dauer erfassen. Mit <strong>Im Monatstotal anrechnen</strong> festlegen, ob die Stunden zum Monatstotal zählen. Arbeitsfreie Tage entsprechend markieren.</li><li>Für wiederkehrende Tätigkeiten einen gespeicherten Tag öffnen und <strong>Auf Folgetage kopieren</strong> wählen.</li><li>Unter <strong>GAV-Einstellungen</strong> bei Bedarf Pensum, Anstellungszeitraum und den erfassten Zeitraum anpassen. Der GAV-Ausweis zeigt den vorläufigen Jahressaldo, die Wochenwerte und die Zuschläge separat.</li><li>Unter <strong>Ferienkonto bearbeiten</strong> den Anspruch pro Jahr, den Übertrag und die Stunden pro Ferientag hinterlegen. Als Ferien erfasste Abwesenheiten werden automatisch abgezogen.</li><li>Monat kontrollieren. Das PDF führt sämtliche Kalendertage, Arbeitsblöcke, Pausen, Nettozeiten, Abwesenheiten und Monatssummen auf.</li><li>Mit <strong>In Outlook öffnen</strong> die vorbereitete Nachricht aufrufen. Das PDF wird heruntergeladen. In Outlook das PDF anfügen und die Nachricht senden. Unter <strong>Weitere Versandoptionen</strong> ist auch eine E-Mail-Datei mit eingebettetem PDF verfügbar.</li></ol><p>Die Einträge sind in diesem Browser auf diesem Gerät gespeichert. Für Nachweise den Monatsrapport als PDF ablegen.</p><div class="actions">'+closeButton+'</div>');
+  '<ol><li>Mit dem Plus ein Mitarbeiterprofil mit Vor- und Nachnamen erstellen. Anschliessend Monat und Jahr auswählen.</li><li>Beim gewünschten Datum <strong>Erfassen</strong> wählen. Bis zu vier Arbeitsblöcke angeben. Unterbrüche zwischen den Blöcken fliessen automatisch in die Nettozeit ein. Pausen innerhalb eines Blocks als zusätzliche Minuten eintragen.</li><li>Ferien, Krankheit oder andere Abwesenheiten mit Dauer erfassen. Mit <strong>Im Monatstotal anrechnen</strong> festlegen, ob die Stunden zum Monatstotal zählen. Arbeitsfreie Tage entsprechend markieren.</li><li>Für wiederkehrende Tätigkeiten einen gespeicherten Tag öffnen und <strong>Auf Folgetage kopieren</strong> wählen.</li><li>Unter <strong>GAV-Einstellungen</strong> bei Bedarf Pensum, Anstellungszeitraum und den erfassten Zeitraum anpassen. Der GAV-Ausweis zeigt den vorläufigen Jahressaldo, die Wochenwerte und die Zuschläge separat.</li><li>Unter <strong>Ferienkonto bearbeiten</strong> den Anspruch pro Jahr, den Übertrag und die Stunden pro Ferientag hinterlegen. Als Ferien erfasste Abwesenheiten werden automatisch abgezogen.</li><li>Monat kontrollieren. Das PDF führt sämtliche Kalendertage, Arbeitsblöcke, Pausen, Nettozeiten, Abwesenheiten und Monatssummen auf.</li><li>Mit <strong>E-Mail mit PDF vorbereiten</strong> Empfänger, Text und PDF-Anhang übernehmen. Nach dem Download die E-Mail-Datei in Outlook öffnen. Bei verbundenem Microsoft 365 öffnet sich der Entwurf direkt in Outlook im Browser.</li></ol><p>Die Einträge sind in diesem Browser auf diesem Gerät gespeichert. Für Nachweise den Monatsrapport als PDF ablegen.</p><div class="actions">'+closeButton+'</div>');
 render();
 if (!storageAvailable) notify("Der Browser blockiert die lokale Speicherung. Bitte den Link in einem normalen Browserfenster öffnen.",true);
 void finishOAuth();
