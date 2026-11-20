@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#082944">
+<title>Arbeitszeiterfassung | Navolta AG</title>
+<link rel="stylesheet" href="style.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<header class="top"><div class="frame top-inner">
+  <img id="logo" src="logo.jpg" alt="Navolta AG" width="700" height="152">
+  <div class="top-actions"><button id="mailSettings" class="secondary" type="button">E-Mail einrichten</button><button id="help" type="button" class="secondary"><span aria-hidden="true">ⓘ</span> Anleitung</button></div>
+</div></header>
+<main class="frame">
+  <section class="hero" aria-labelledby="title">
+    <div><h1 id="title">Arbeitszeit&shy;erfassung</h1><p>Arbeitszeiten und Abwesenheiten erfassen und den Monatsrapport einreichen.</p></div>
+    <img src="zeitmotiv.webp" alt="" width="565" height="354">
+  </section>
+  <section class="controls" aria-label="Mitarbeiter und Zeitraum">
+    <div class="field employee"><label for="employee">Mitarbeiter/in</label><div class="group"><select id="employee"></select><button class="secondary" id="newEmployee" type="button" aria-label="Mitarbeiterprofil hinzufügen" title="Mitarbeiterprofil hinzufügen">＋</button><button class="secondary" id="renameEmployee" type="button" aria-label="Name bearbeiten" title="Name bearbeiten">✎</button></div></div>
+    <div class="field"><label for="month">Monat</label><select id="month"></select></div>
+    <div class="field year"><label for="year">Jahr</label><select id="year"></select></div>
+    <div class="toolbar"><button id="pdf" class="secondary" type="button">PDF herunterladen</button><button id="mail" class="primary" type="button">Per E-Mail einreichen</button></div>
+  </section>
+  <section class="stats" aria-label="Monatssummen">
+    <div class="stat"><span>Arbeitszeit netto</span><strong id="workTotal">0:00</strong></div>
+    <div class="stat"><span>Abwesenheit erfasst</span><strong id="absenceTotal">0:00</strong></div>
+    <div class="stat"><span>Davon angerechnet</span><strong id="creditTotal">0:00</strong></div>
+    <div class="stat emphasis"><span>Monatstotal angerechnet</span><strong id="monthTotal">0:00</strong></div>
+  </section>
+  <section class="ledger" aria-labelledby="period">
+    <div class="ledger-head"><div><h2 id="period"></h2><p id="coverage"></p></div><button id="today" class="secondary" type="button">Aktueller Monat</button></div>
+    <div class="table-wrap"><table><thead><tr><th scope="col">Datum</th><th scope="col">Arbeitsblöcke</th><th scope="col">Pausen</th><th scope="col">Netto</th><th scope="col">Abwesenheit / Status</th><th scope="col">Bemerkung</th><th scope="col"><span class="sr">Bearbeiten</span></th></tr></thead><tbody id="days"></tbody></table></div>
+  </section>
+  <footer><span>Navolta AG · Monatsrapport</span><span>Einträge bleiben in diesem Browser.</span></footer>
+</main>
+<div id="notice" role="status" aria-live="polite"></div>
+<dialog id="dialog" aria-labelledby="dialogTitle"><div id="dialogContent"></div></dialog>
+</body>
+</html>

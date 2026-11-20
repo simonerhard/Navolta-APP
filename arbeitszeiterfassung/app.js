@@ -1,0 +1,522 @@
+"use strict";
+const $ = id => document.getElementById(id);
+const KEY = "navolta.arbeitszeiterfassung.v1";
+const AUTH = KEY + ".oauth";
+const RECIPIENTS = ["info@navolta.ch", "se@navolta.ch"];
+const MONTHS = Array.from({length:12}, (_, i) => new Intl.DateTimeFormat("de-CH", {month:"long", timeZone:"UTC"}).format(new Date(Date.UTC(2026,i,1))));
+const WEEKDAYS = ["So","Mo","Di","Mi","Do","Fr","Sa"];
+const ABSENCES = ["Ferien", "Krankheit", "Unfall", "Feiertag", "Arzttermin", "Weiterbildung", "Militär / Zivildienst", "Mutterschaft / anderer Elternteil", "Kompensation", "Unbezahlter Urlaub", "Sonstige Abwesenheit"];
+const now = new Intl.DateTimeFormat("sv-SE", {timeZone:"Europe/Zurich",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+const blank = () => ({slots:[], breakMinutes:0, absence:"", absenceMinutes:0, credited:false, off:false, note:"", extra:[0,0,0]});
+const pad = n => String(n).padStart(2, "0");
+const duration = n => Math.floor(n / 60) + ":" + pad(n % 60);
+const time = value => {
+  const [hours, minutes] = value.split(":").map(Number);
+  return hours * 60 + minutes;
+};
+const escapeHtml = value => String(value).replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[ch]);
+const daysIn = (y,m) => new Date(Date.UTC(y,m,0)).getUTCDate();
+const keyFor = (y,m,d) => y + "-" + pad(m) + "-" + pad(d);
+let state = {employees:[], selected:"", year:Number(now.slice(0,4)), month:Number(now.slice(5,7)), mail:{}};
+let storageAvailable = true;
+try {
+  const saved = localStorage.getItem(KEY);
+  if (saved) state = JSON.parse(saved);
+  localStorage.setItem(KEY, JSON.stringify(state));
+} catch (error) {
+  storageAvailable = false;
+}
+let accessToken = "";
+let expires = 0;
+let noticeTimer;
+function notify(message, persistent = false) {
+  clearTimeout(noticeTimer);
+  $("notice").textContent = message;
+  if (!persistent) noticeTimer = setTimeout(() => { $("notice").textContent = ""; }, 6500);
+}
+function save(next) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(next));
+    state = next;
+    return true;
+  } catch (error) {
+    notify("Speichern fehlgeschlagen. Prüfen Sie die Browsereinstellungen oder den verfügbaren Speicher.", true);
+    return false;
+  }
+}
+const employee = () => state.employees.find(person => person.id === state.selected);
+function net(entry) {
+  return entry.slots.reduce((sum,[from,to]) => sum + time(to) - time(from), 0) - entry.breakMinutes;
+}
+function pauses(entry) {
+  return entry.slots.reduce((sum,[from],i) => i ? sum+time(from)-time(entry.slots[i-1][1]) : sum, entry.breakMinutes);
+}
+function datesFor(person, year, month) {
+  return Array.from({length:daysIn(year,month)}, (_,i) => {
+    const day = i + 1;
+    const date = keyFor(year,month,day);
+    return {date, day, weekday:new Date(Date.UTC(year,month-1,day)).getUTCDay(), entry:person?.days[date]};
+  });
+}
+function totalsFor(days) {
+  const types = new Map();
+  let work = 0, absence = 0, credit = 0;
+  const extra = [0,0,0];
+  for (const {entry} of days) {
+    if (!entry) continue;
+    work += net(entry);
+    entry.extra?.forEach((value,i)=>{ extra[i] += value; });
+    absence += entry.absenceMinutes;
+    if (entry.credited) credit += entry.absenceMinutes;
+    if (entry.absence) {
+      const subtotal = types.get(entry.absence) || [0,0];
+      subtotal[0] += entry.absenceMinutes;
+      if (entry.credited) subtotal[1] += entry.absenceMinutes;
+      types.set(entry.absence, subtotal);
+    }
+  }
+  return {work,absence,credit,total:work+credit,types,extra};
+}
+function render() {
+  const person = employee();
+  $("employee").replaceChildren(new Option("Mitarbeiterprofil wählen", ""), ...state.employees.map(item => new Option(item.name,item.id)));
+  $("employee").value = state.selected;
+  $("month").value = state.month;
+  $("year").value = state.year;
+  $("renameEmployee").disabled = !person || !storageAvailable;
+  $("newEmployee").disabled = !storageAvailable;
+  $("period").textContent = MONTHS[state.month-1] + " " + state.year;
+  const days = datesFor(person,state.year,state.month);
+  const recorded = days.filter(day => day.entry).length;
+  $("coverage").textContent = person ? recorded + " von " + days.length + " Kalendertagen erfasst" : "Für die Zeiterfassung ein Mitarbeiterprofil anlegen oder auswählen.";
+  const sums = totalsFor(days);
+  for (const [id,value] of Object.entries({workTotal:sums.work,absenceTotal:sums.absence,creditTotal:sums.credit,monthTotal:sums.total})) {
+    $(id).textContent = duration(value) + " h";
+  }
+  $("pdf").disabled = $("mail").disabled = !recorded;
+  $("days").innerHTML = days.map(({date,day,weekday,entry}) => {
+    const weekend = [0,6].includes(weekday);
+    const description = entry?.absence ? escapeHtml(entry.absence) + " · " + duration(entry.absenceMinutes) + " h" + (entry.credited ? " · angerechnet" : "") : (entry?.off ? "Arbeitsfrei" : "");
+    const blocks = entry?.slots.length ? entry.slots.map(slot => escapeHtml(slot.join("–"))).join(" · ") : "";
+    const edit = person ? '<button type="button" class="secondary" data-date="'+ date +'" aria-label="'+pad(day)+'. '+MONTHS[state.month-1]+(entry?' bearbeiten':' erfassen')+'">'+(entry?'Ändern':'Erfassen')+'</button>' : "";
+    return '<tr class="'+(weekend?"weekend ":"")+(date===now?"current-day":"")+'"><td><strong>'+pad(day)+'.'+pad(state.month)+'.</strong> <span class="muted">'+WEEKDAYS[weekday]+'</span></td><td>'+blocks+'</td><td>'+(entry?.slots.length ? duration(pauses(entry))+" h" : "")+'</td><td>'+(entry?.slots.length?'<strong>'+duration(net(entry))+' h</strong>':"")+'</td><td>'+(description?'<span class="pill">'+description+'</span>':(!entry?'<span class="muted">'+(weekend?'Wochenende':'Offen')+'</span>':""))+'</td><td class="note">'+escapeHtml(entry?.note || "")+'</td><td>'+edit+'</td></tr>';
+  }).join("");
+}
+function updateSelection(changes) {
+  save({...state,...changes});
+  render();
+}
+function openDialog(title, html) {
+  $("dialogContent").innerHTML = '<h2 id="dialogTitle">'+escapeHtml(title)+'</h2>'+html;
+  if (!$("dialog").open) $("dialog").showModal();
+  $("closeDialog")?.addEventListener("click", () => $("dialog").close());
+}
+const closeButton = '<button id="closeDialog" type="button" class="secondary">Schliessen</button>';
+const cancelButton = '<button id="closeDialog" type="button" class="secondary">Abbrechen</button>';
+function profileEditor(existing) {
+  openDialog(existing ? "Mitarbeiterprofil bearbeiten" : "Mitarbeiterprofil hinzufügen",
+    '<form id="profileForm"><div class="field"><label for="fullName">Vor- und Nachname</label><input id="fullName" maxlength="80" required autocomplete="name" value="'+escapeHtml(existing?.name || "")+'"></div><p id="profileError" class="alert" role="alert"></p><div class="actions">'+cancelButton+'<button type="submit" class="primary">Speichern</button></div></form>');
+  $("fullName").focus();
+  $("profileForm").onsubmit = event => {
+    event.preventDefault();
+    const name = $("fullName").value.trim().replace(/\s+/g," ");
+    if (!name) return;
+    if (state.employees.some(item => item.id !== existing?.id && item.name.toLocaleLowerCase("de-CH") === name.toLocaleLowerCase("de-CH"))) {
+      $("profileError").textContent = "Dieser Name ist bereits erfasst.";
+      return;
+    }
+    const id = existing?.id || Date.now().toString(36) + Math.random().toString(36).slice(2);
+    const employees = existing ? state.employees.map(item => item.id === id ? {...item,name} : item) : [...state.employees,{id,name,days:{}}];
+    if (save({...state,employees,selected:id})) { $("dialog").close(); render(); }
+  };
+}
+const EXTRA_LABELS = ["Überstunden A","Überstunden B","Vorholzeit"];
+function editDay(date) {
+  const person = employee();
+  const entry = person.days[date] || blank();
+  const prettyDate = date.split("-").reverse().join(".");
+  const slotHtml = Array.from({length:4}, (_,i) => {
+    const [from,to] = entry.slots[i] || ["",""];
+    return '<div class="slot"><label>Von '+(i+1)+'<input type="time" id="from'+i+'" value="'+from+'"></label><label>Bis '+(i+1)+'<input type="time" id="to'+i+'" value="'+(to === "24:00" ? "00:00" : to)+'"></label></div>';
+  }).join("");
+  openDialog(prettyDate + " · Tageserfassung",
+    '<form id="dayForm"><label class="check"><input id="off" type="checkbox" '+(entry.off?"checked":"")+'> Arbeitsfreier Tag</label>'+
+    '<div id="dayFields"><fieldset><legend>Arbeitsblöcke</legend><p class="intro">Pausen zwischen Arbeitsblöcken sind bereits abgezogen. Zusätzliche Pausen innerhalb eines Blocks separat erfassen.</p>'+slotHtml+
+    '<div class="field"><label for="breakMinutes">Zusätzliche Pause (Minuten)</label><input type="number" id="breakMinutes" min="0" max="1439" value="'+entry.breakMinutes+'" required></div></fieldset>'+
+    '<fieldset><legend>Abwesenheit</legend><div class="field"><label for="absence">Art</label><select id="absence"><option value="">Keine</option>'+ABSENCES.map(item=>'<option'+(item===entry.absence?' selected':'')+'>'+escapeHtml(item)+'</option>').join("")+'</select></div>'+
+    '<div id="absenceFields" hidden><div class="grid"><div class="field"><label for="absHours">Stunden</label><input type="number" id="absHours" min="0" max="24" value="'+Math.floor(entry.absenceMinutes/60)+'"></div><div class="field"><label for="absMins">Minuten</label><input type="number" id="absMins" min="0" max="59" value="'+entry.absenceMinutes%60+'"></div></div><p><label class="check"><input id="credited" type="checkbox" '+(entry.credited?"checked":"")+'> Im Monatstotal anrechnen</label></p></div></fieldset>'+
+    '<details><summary>Überstunden und Vorholzeit</summary><p class="intro">Diese Werte werden separat ausgewiesen. Sie ändern das Monatstotal nicht.</p><div class="grid">'+EXTRA_LABELS.map((label,i)=>'<label>'+label+' (Minuten)<input type="number" id="extra'+i+'" min="0" max="1440" value="'+(entry.extra?.[i] || 0)+'"></label>').join("")+'</div></details></div>'+
+    '<div class="field"><label for="note">Bemerkung</label><textarea id="note" maxlength="160" rows="2">'+escapeHtml(entry.note)+'</textarea></div><p id="dayError" role="alert" class="alert"></p>'+
+    '<div class="actions">'+(person.days[date]?'<button type="button" class="danger" id="removeDay">Eintrag löschen</button>':"")+cancelButton+'<button class="primary" type="submit">Speichern</button></div></form>');
+  const toggle = () => {
+    $("dayFields").hidden = $("off").checked;
+    $("absenceFields").hidden = !$("absence").value;
+    $("dayFields").querySelectorAll("input, select").forEach(input => { input.disabled = $("off").checked || ($("absenceFields").contains(input) && !$("absence").value); });
+  };
+  toggle();
+  $("off").onchange = $("absence").onchange = toggle;
+  const write = value => {
+    const days = {...person.days};
+    if (value) days[date] = value;
+    else delete days[date];
+    if (save({...state,employees:state.employees.map(item => item.id===person.id ? {...item,days} : item)})) {
+      $("dialog").close();
+      render();
+      $("days").querySelector('button[data-date="'+date+'"]')?.focus();
+    }
+  };
+  if ($("removeDay")) $("removeDay").onclick = () => {
+    if (window.confirm("Tageseintrag für "+prettyDate+" löschen?")) write(null);
+  };
+  $("dayForm").onsubmit = event => {
+    event.preventDefault();
+    const value = {...blank(),off:$("off").checked,note:$("note").value.trim()};
+    const error = message => { $("dayError").textContent = message; };
+    if (value.off) return write(value);
+    for (let i=0; i<4; i++) {
+      const from = $("from"+i).value;
+      const end = $("to"+i).value;
+      const to = end === "00:00" && from && from !== "00:00" ? "24:00" : end;
+      if (!from && !to) continue;
+      if (!from || !to || time(to) <= time(from)) return error("Für jeden Block eine Endzeit nach der Startzeit erfassen. Bei Mitternacht den Block beim Tageswechsel aufteilen und die Endzeit 00:00 eingeben.");
+      value.slots.push([from,to]);
+    }
+    value.slots.sort((a,b)=>a[0].localeCompare(b[0]));
+    if (value.slots.some(([from],i)=>i>0 && from<value.slots[i-1][1])) return error("Arbeitsblöcke dürfen sich nicht überschneiden.");
+    value.breakMinutes = Number($("breakMinutes").value);
+    value.extra = EXTRA_LABELS.map((_,i)=>Number($("extra"+i).value || 0));
+    if (value.extra.some(Boolean) && !value.slots.length) return error("Für Überstunden und Vorholzeit auch die Arbeitsblöcke erfassen.");
+    if (net(value)<0 || (value.slots.length && net(value)===0)) return error("Die zusätzliche Pause muss kürzer als die erfasste Arbeitszeit sein.");
+    value.absence = $("absence").value;
+    if (value.absence) {
+      value.absenceMinutes = Number($("absHours").value)*60+Number($("absMins").value);
+      value.credited = $("credited").checked;
+      if (!value.absenceMinutes || value.absenceMinutes + net(value) > 1440) return error("Eine positive Abwesenheitsdauer erfassen. Arbeits- und Abwesenheitszeit dürfen zusammen höchstens 24 Stunden betragen.");
+    }
+    if (!value.slots.length && !value.absence) return error("Arbeitszeiten, eine Abwesenheit oder einen arbeitsfreien Tag erfassen.");
+    write(value);
+  };
+}
+
+function reportForSelection() {
+  const person = employee();
+  const days = datesFor(person,state.year,state.month);
+  const month = MONTHS[state.month-1]+" "+state.year;
+  const basename = person.name.normalize("NFKD").replace(/\p{Mark}/gu,"").replace(/[^a-zA-Z0-9]+/g,"_").replace(/^_|_$/g,"") || "Mitarbeiter";
+  return {name:person.name,month,days,sums:totalsFor(days),filename:"Navolta_Arbeitszeit_"+state.year+"-"+pad(state.month)+"_"+basename+".pdf",open:days.filter(day=>!day.entry && ![0,6].includes(day.weekday)).length};
+}
+const splitLines = (value, limit) => String(value).split(/\r?\n/).flatMap(line => {
+  const lines = [];
+  let rest = line;
+  while (rest.length > limit) {
+    const space = rest.lastIndexOf(" ",limit);
+    const cut = space > 0 ? space : limit;
+    lines.push(rest.slice(0,cut));
+    rest = rest.slice(cut).trimStart();
+  }
+  return [...lines,rest];
+});
+const winAnsi = {"€":128,"’":146,"“":147,"”":148,"•":149,"–":150,"—":151,"…":133};
+function pdfString(value) {
+  return Array.from(String(value).normalize("NFC"), char => {
+    const code = winAnsi[char] ?? char.charCodeAt(0);
+    if (code >= 32 && code <= 126) return /[()\\]/.test(char) ? "\\"+char : char;
+    return code >= 160 && code <= 255 || winAnsi[char] ? "\\"+code.toString(8).padStart(3,"0") : "?";
+  }).join("");
+}
+const bytesFromBinary = str => Uint8Array.from(str,ch=>ch.charCodeAt(0));
+async function makePdf(report) {
+  const image = $("logo");
+  await image.decode();
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  canvas.getContext("2d").drawImage(image,0,0);
+  const jpeg = atob(canvas.toDataURL("image/jpeg",.92).split(",")[1]);
+  const objects = ["", "", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>",
+    "<< /Type /XObject /Subtype /Image /Width "+canvas.width+" /Height "+canvas.height+" /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length "+jpeg.length+" >>\nstream\n"+jpeg+"\nendstream"];
+  const navy = ".04 .16 .26";
+  const muted = ".25 .35 .42";
+  const grey = ".94 .96 .98";
+  let commands = [];
+  let y;
+  const pages = [];
+  const text = (value,x,top,size=9,bold=false,color=navy) => commands.push("BT /"+(bold?"B":"R")+" "+size+" Tf "+color+" rg 1 0 0 1 "+x+" "+(842-top)+" Tm ("+pdfString(value)+") Tj ET");
+  const rect = (x,top,w,h,color) => commands.push(color+" rg "+x+" "+(842-top-h)+" "+w+" "+h+" re f");
+  function startPage() {
+    commands = [];
+    pages.push(commands);
+    commands.push("q 142 0 0 "+(142*canvas.height/canvas.width).toFixed(2)+" 419 781 cm /Logo Do Q");
+    text("Arbeitszeiterfassung",35,60,24,true);
+    text(report.month,36,83,14,true);
+    for (const [i,line] of splitLines(report.name,64).entries()) text(line,36,103+i*14,11);
+    y = 131;
+  }
+  const xs = [43,87,108,268,317,433];
+  const headings = ["Datum","WT","Arbeitsblöcke","Netto","Abwesenheit / Status","Bemerkung"];
+  function tableHead() {
+    rect(35,y,525,22,".87 .93 .97");
+    headings.forEach((head,i)=>text(head,xs[i],y+14,8,true));
+    y += 22;
+  }
+  startPage();
+  const summary = [["Arbeit netto",report.sums.work],["Abwesend erfasst",report.sums.absence],["Davon angerechnet",report.sums.credit],["Monatstotal angerechnet",report.sums.total]];
+  summary.forEach(([label,value],i)=>{
+    const x=35+i*132;
+    rect(x,y,129,42,i===3?".85 .93 .98":grey);
+    text(label,x+8,y+15,8,true); text(duration(value)+" h",x+8,y+33,14,true);
+  });
+  y += 47;
+  text("Angaben in Stunden und Minuten. Pausen zwischen Arbeitsblöcken sind bereits abgezogen.",36,y+11,8,false,muted);
+  y += 20;
+  tableHead();
+  for (const {date,weekday,entry} of report.days) {
+    const weekend = [0,6].includes(weekday);
+    const pairs = entry?.slots.map(slot=>slot.join("–")) || [];
+    const blocks = [pairs.slice(0,2).join("   "),pairs.slice(2).join("   ")].filter(Boolean);
+    if (entry?.slots.length && pauses(entry)) blocks.push("Pausen gesamt "+duration(pauses(entry))+" h"+(entry.breakMinutes ? " (davon "+duration(entry.breakMinutes)+" h zusätzlich)" : ""));
+    const extra = entry?.extra?.flatMap((amount,i)=>amount ? [["ÜS A","ÜS B","Vorhol"][i]+" "+duration(amount)] : []);
+    if (extra?.length) blocks.push(extra.join(" · "));
+    const absence = entry?.absence ? splitLines(entry.absence,22) : [entry?.off ? "Arbeitsfrei" : (!entry ? (weekend ? "Wochenende" : "Offen") : "")];
+    if (entry?.absence) absence.push(duration(entry.absenceMinutes)+" h "+(entry.credited?"angerechnet":"ohne Anrechnung"));
+    const notes = splitLines(entry?.note || "",25);
+    const height = Math.max(blocks.length,absence.length,notes.length,1)*10+8;
+    if (y+height > 783) { startPage(); tableHead(); }
+    if (weekend) rect(35,y,525,height,grey);
+    rect(35,y+height-1,525,.5,".86 .90 .93");
+    text(date.slice(8)+"."+date.slice(5,7)+".",xs[0],y+12,8,true);
+    text(WEEKDAYS[weekday],xs[1],y+12,8);
+    blocks.forEach((line,i)=>text(line,xs[2],y+12+10*i,8));
+    if (pairs.length) text(duration(net(entry))+" h",xs[3],y+12,8,true);
+    absence.forEach((line,i)=>text(line,xs[4],y+12+10*i,8));
+    notes.forEach((line,i)=>text(line,xs[5],y+12+10*i,8));
+    y += height;
+  }
+  const types = Array.from(report.sums.types, ([label,values]) => label+" · "+duration(values[0])+" h erfasst · "+duration(values[1])+" h angerechnet");
+  if (report.sums.extra.some(Boolean)) {
+    if (y+29 > 783) startPage();
+    y += 18;
+    text(EXTRA_LABELS.map((label,i)=>label+" "+duration(report.sums.extra[i])+" h").join("  ·  "),36,y,9,true);
+  }
+  if (types.length) {
+    if (y+26+types.length*13 > 783) startPage();
+    y += 19;
+    text("Abwesenheiten nach Art",36,y,11,true);
+    for (const type of types) { y += 13; text(type,36,y,9); }
+  }
+  pages.forEach((content,index)=>{
+    commands=content;
+    rect(35,800,525,.65,".78 .84 .89");
+    text("Navolta AG · Monatsrapport",36,816,8,false,muted);
+    text("Seite "+(index+1)+" / "+pages.length,508,816,8,false,muted);
+  });
+  const pageIds = pages.map(content=>{
+    const stream=content.join("\n");
+    objects.push("<< /Length "+stream.length+" >>\nstream\n"+stream+"\nendstream");
+    const ref=objects.length;
+    objects.push("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /R 3 0 R /B 4 0 R >> /XObject << /Logo 5 0 R >> >> /Contents "+ref+" 0 R >>");
+    return objects.length+" 0 R";
+  });
+  objects[0]="<< /Type /Catalog /Pages 2 0 R >>";
+  objects[1]="<< /Type /Pages /Kids ["+pageIds.join(" ")+"] /Count "+pages.length+" >>";
+  let output="%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
+  const offsets = ["0000000000 65535 f \n"];
+  objects.forEach((object,i)=>{
+    offsets.push(String(output.length).padStart(10,"0")+" 00000 n \n");
+    output+=(i+1)+" 0 obj\n"+object+"\nendobj\n";
+  });
+  const xref=output.length;
+  output+="xref\n0 "+offsets.length+"\n"+offsets.join("")+"trailer\n<< /Size "+offsets.length+" /Root 1 0 R >>\nstartxref\n"+xref+"\n%%EOF\n";
+  return bytesFromBinary(output);
+}
+function download(contents,filename,mime) {
+  const url=URL.createObjectURL(new Blob([contents],{type:mime}));
+  const anchor=document.createElement("a");
+  anchor.href=url; anchor.download=filename;
+  document.body.append(anchor); anchor.click(); anchor.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+const base64 = bytes => {
+  let value="";
+  for (let start=0; start<bytes.length; start+=8192) value+=String.fromCharCode(...bytes.subarray(start,start+8192));
+  return btoa(value);
+};
+const utfBase64 = value => base64(new TextEncoder().encode(value));
+const fold = value => value.match(/.{1,76}/g)?.join("\r\n") || "";
+const subjectFor = report => "Arbeitszeiterfassung "+report.month+" – "+report.name;
+const bodyFor = report => "Guten Tag\n\nIm Anhang sende ich Ihnen meine Arbeitszeiterfassung für "+report.month+" mit den erfassten Arbeitszeiten und Abwesenheiten.\n\nMit freundlichen Grüssen\n"+report.name;
+function saveEml(report,pdf) {
+  const boundary = "Navolta-Monatsrapport-"+Date.now();
+  // Encode full subject chunks without losing their separating spaces.
+  const subject = Array.from(subjectFor(report)).reduce((chunks,char,i)=>{
+    if (i%18===0) chunks.push("");
+    chunks[chunks.length-1]+=char;
+    return chunks;
+  },[]).map(chunk=>"=?UTF-8?B?"+utfBase64(chunk)+"?=").join("\r\n ");
+  const eml = [
+    "X-Unsent: 1",
+    "To: "+RECIPIENTS.join(", "),
+    "Subject: "+subject,
+    "MIME-Version: 1.0",
+    'Content-Type: multipart/mixed; boundary="'+boundary+'"',
+    "",
+    "--"+boundary,
+    'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    fold(utfBase64(bodyFor(report).replace(/\n/g,"\r\n"))),
+    "--"+boundary,
+    'Content-Type: application/pdf; name="'+report.filename+'"',
+    'Content-Disposition: attachment; filename="'+report.filename+'"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    fold(base64(pdf)),
+    "--"+boundary+"--",
+    ""
+  ].join("\r\n");
+  download(eml,report.filename.replace(/\.pdf$/,".eml"),"message/rfc822");
+}
+
+const redirectUri = () => new URL("./",location.href).href;
+const base64url = bytes => base64(bytes).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+const nonce = () => base64url(crypto.getRandomValues(new Uint8Array(32)));
+const scope = "https://graph.microsoft.com/Mail.Send";
+const hasToken = () => Boolean(accessToken && expires > Date.now()+60000);
+async function connectMicrosoft(continueToMail) {
+  const {tenant,client}=state.mail;
+  const verifier=nonce();
+  const expectedState=nonce();
+  const challenge=base64url(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(verifier))));
+  const redirect=redirectUri();
+  sessionStorage.setItem(AUTH,JSON.stringify({tenant,client,verifier,expectedState,redirect,continueToMail,when:Date.now()}));
+  const params=new URLSearchParams({client_id:client,response_type:"code",redirect_uri:redirect,scope,state:expectedState,code_challenge:challenge,code_challenge_method:"S256",response_mode:"query"});
+  location.assign("https://login.microsoftonline.com/"+tenant+"/oauth2/v2.0/authorize?"+params);
+}
+async function finishOAuth() {
+  const params=new URLSearchParams(location.search);
+  if (!params.has("code") && !params.has("error")) return;
+  history.replaceState(null,"",location.pathname);
+  try {
+    const pending=JSON.parse(sessionStorage.getItem(AUTH) || "null");
+    sessionStorage.removeItem(AUTH);
+    if (!pending || pending.expectedState!==params.get("state") || Date.now()-pending.when>15*60*1000) throw new Error("Die Anmeldung ist abgelaufen. Bitte erneut verbinden.");
+    if (params.has("error")) throw new Error("Microsoft 365 hat die Anmeldung abgebrochen oder die Freigabe verweigert.");
+    const response=await fetch("https://login.microsoftonline.com/"+pending.tenant+"/oauth2/v2.0/token",{
+      method:"POST",body:new URLSearchParams({client_id:pending.client,grant_type:"authorization_code",code:params.get("code"),redirect_uri:pending.redirect,code_verifier:pending.verifier,scope})
+    });
+    if (!response.ok) throw new Error("Microsoft 365 konnte die Anmeldung nicht abschliessen. Prüfen Sie die App-ID, den Mandanten und die SPA-Weiterleitungs-URI.");
+    const token=await response.json();
+    accessToken=token.access_token;
+    expires=Date.now()+Number(token.expires_in)*1000;
+    notify("Microsoft 365 ist für diese Sitzung verbunden.");
+    if (pending.continueToMail && !$("mail").disabled) showMail();
+  } catch(error) {
+    notify(error.message || "Microsoft 365 konnte nicht verbunden werden.",true);
+  }
+}
+function mailSettings(continueToMail=false) {
+  const enabled=location.protocol==="https:" || location.hostname==="localhost" || location.hostname==="127.0.0.1";
+  openDialog("E-Mail mit Microsoft 365",
+    '<p class="intro">'+(hasToken()?'Microsoft 365 ist für diese Sitzung verbunden.':'Für den direkten Versand braucht es eine Microsoft-Entra-App der Navolta AG und eine Anmeldung mit dem Geschäftsaccount.')+'</p>'+
+    '<form id="mailConfig"><div class="field"><label for="tenant">Verzeichnis-ID oder verifizierte Microsoft-365-Domain</label><input id="tenant" autocomplete="off" maxlength="100" required value="'+escapeHtml(state.mail.tenant || "")+'"></div>'+
+    '<div class="field"><label for="client">Anwendungs-ID (Client-ID)</label><input id="client" autocomplete="off" maxlength="36" required value="'+escapeHtml(state.mail.client || "")+'"></div>'+
+    '<details><summary>Angaben für die IT</summary><p>In Microsoft Entra eine App für das eigene Organisationsverzeichnis registrieren. Als Plattform «Single-Page Application» wählen und die folgende Weiterleitungs-URI hinterlegen.</p><p><code>'+escapeHtml(redirectUri())+'</code></p><p>Unter Microsoft Graph die delegierte Berechtigung <code>Mail.Send</code> hinzufügen und bei Bedarf freigeben. Die App verwendet kein Clientgeheimnis.</p></details>'+
+    '<p id="mailConfigError" class="alert" role="alert">'+(enabled?'':'Für die Microsoft-Anmeldung die App über HTTPS öffnen.')+'</p>'+
+    '<div class="actions">'+closeButton+'<button type="submit" class="primary" '+(enabled?'':'disabled')+'>Mit Microsoft 365 verbinden</button></div></form>');
+  $("mailConfig").onsubmit=async event=>{
+    event.preventDefault();
+    const tenant=$("tenant").value.trim().toLowerCase();
+    const client=$("client").value.trim().toLowerCase();
+    const guid=/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/;
+    const domain=/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
+    if ((!guid.test(tenant) && !domain.test(tenant)) || !guid.test(client)) {
+      $("mailConfigError").textContent="Bitte eine gültige Verzeichnis-ID oder Domain und eine gültige Anwendungs-ID eingeben.";
+      return;
+    }
+    if (!save({...state,mail:{tenant,client}})) return;
+    accessToken="";
+    event.submitter.disabled=true;
+    try { await connectMicrosoft(continueToMail); }
+    catch(error) {
+      event.submitter.disabled=false;
+      $("mailConfigError").textContent="Die Anmeldung konnte nicht gestartet werden. Browser und sichere Verbindung prüfen.";
+    }
+  };
+}
+let sending=false;
+function showMail() {
+  const report=reportForSelection();
+  openDialog("Monatsrapport einreichen",
+    '<p><strong>An</strong><br>'+RECIPIENTS.join(", ")+'</p><p><strong>Betreff</strong><br>'+escapeHtml(subjectFor(report))+'</p>'+
+    '<div class="mail-body">'+escapeHtml(bodyFor(report))+'</div><p><strong>PDF-Anhang</strong><br>'+escapeHtml(report.filename)+'</p>'+
+    (report.open?'<p class="alert">'+report.open+' offene Werktage sind im PDF gekennzeichnet.</p>':'')+
+    '<p class="intro">'+(hasToken()?'Versand über Ihr Microsoft-365-Konto.':'Für den Direktversand Microsoft 365 verbinden. Die E-Mail-Datei enthält Text, Empfänger und PDF-Anhang und lässt sich in kompatiblen Mailprogrammen wie Outlook öffnen.')+'</p>'+
+    '<p id="mailError" role="alert" class="alert"></p><div class="actions">'+closeButton+'<button type="button" id="eml" class="secondary">E-Mail-Datei herunterladen</button><button id="send" type="button" class="primary">'+(hasToken()?'E-Mail senden':'Microsoft 365 verbinden')+'</button></div>');
+  $("eml").onclick=async event=>{
+    const button=event.currentTarget;
+    const error=$("mailError");
+    button.disabled=true;
+    try { saveEml(report,await makePdf(report)); notify("E-Mail-Datei mit PDF-Anhang erstellt."); }
+    catch { error.textContent="Die E-Mail-Datei konnte nicht erstellt werden. Bitte erneut versuchen."; }
+    finally { button.disabled=false; }
+  };
+  $("send").disabled=sending;
+  $("send").onclick=async event=>{
+    if (!hasToken()) { mailSettings(true); return; }
+    if (sending) return;
+    const button=event.currentTarget;
+    const error=$("mailError");
+    button.disabled=true;
+    $("closeDialog").disabled=true;
+    sending=true;
+    error.textContent="";
+    let sent=false;
+    try {
+      const pdf=await makePdf(report);
+      const result=await fetch("https://graph.microsoft.com/v1.0/me/sendMail",{
+        method:"POST",headers:{"Authorization":"Bearer "+accessToken,"Content-Type":"application/json"},
+        body:JSON.stringify({message:{subject:subjectFor(report),body:{contentType:"Text",content:bodyFor(report)},toRecipients:RECIPIENTS.map(address=>({emailAddress:{address}})),attachments:[{"@odata.type":"#microsoft.graph.fileAttachment",name:report.filename,contentType:"application/pdf",contentBytes:base64(pdf)}]},saveToSentItems:true})
+      });
+      if (result.status===401) { accessToken=""; button.textContent="Microsoft 365 verbinden"; throw new Error("Die Microsoft-Anmeldung ist abgelaufen. Bitte erneut verbinden."); }
+      if (result.status===403) throw new Error("Microsoft 365 hat den Versand verweigert. Das Konto und die Freigabe für Mail.Send prüfen.");
+      if (result.status!==202) throw new Error("Microsoft 365 hat den Versand nicht bestätigt (Status "+result.status+"). Vor einer Wiederholung die gesendeten Elemente prüfen.");
+      sent=true;
+      $("dialog").close();
+      notify("Microsoft 365 hat die E-Mail mit PDF-Anhang zum Versand angenommen.");
+    } catch(failure) {
+      error.textContent=failure instanceof TypeError?"Verbindung unterbrochen. Vor einer Wiederholung die gesendeten Elemente in Outlook prüfen.":failure.message;
+    } finally {
+      sending=false;
+      button.disabled=sent;
+      if ($("closeDialog")) $("closeDialog").disabled=false;
+    }
+  };
+}
+$("dialog").addEventListener("cancel",event=>{if(sending) event.preventDefault();});
+$("month").replaceChildren(...MONTHS.map((month,index)=>new Option(month,index+1)));
+$("employee").onchange=event=>updateSelection({selected:event.target.value});
+$("month").onchange=event=>updateSelection({month:Number(event.target.value)});
+$("year").replaceChildren(...Array.from({length:100},(_,i)=>new Option(2000+i,2000+i)));
+$("year").onchange=event=>updateSelection({year:Number(event.target.value)});
+$("today").onclick=()=>updateSelection({year:Number(now.slice(0,4)),month:Number(now.slice(5,7))});
+$("newEmployee").onclick=()=>profileEditor();
+$("renameEmployee").onclick=()=>profileEditor(employee());
+$("days").onclick=event=>{
+  const button=event.target.closest("button[data-date]");
+  if (button) editDay(button.dataset.date);
+};
+$("pdf").onclick=async event=>{
+  const button=event.currentTarget;
+  const report=reportForSelection();
+  button.disabled=true;
+  try { download(await makePdf(report),report.filename,"application/pdf"); }
+  catch { notify("Das PDF konnte nicht erstellt werden. Bitte die Seite neu laden und erneut versuchen.",true); }
+  finally { render(); }
+};
+$("mail").onclick=showMail;
+$("mailSettings").onclick=()=>mailSettings();
+$("help").onclick=()=>openDialog("Anleitung",
+  '<ol><li>Mit dem Plus ein Mitarbeiterprofil mit Vor- und Nachnamen erstellen. Anschliessend Monat und Jahr auswählen.</li><li>Beim gewünschten Datum <strong>Erfassen</strong> wählen. Bis zu vier Arbeitsblöcke angeben. Unterbrüche zwischen den Blöcken fliessen automatisch in die Nettozeit ein. Pausen innerhalb eines Blocks als zusätzliche Minuten eintragen.</li><li>Ferien, Krankheit oder andere Abwesenheiten mit Dauer erfassen. Mit <strong>Im Monatstotal anrechnen</strong> festlegen, ob die Stunden zum Monatstotal zählen. Arbeitsfreie Tage entsprechend markieren.</li><li>Monat kontrollieren. Das PDF führt sämtliche Kalendertage, Arbeitsblöcke, Pausen, Nettozeiten, Abwesenheiten und Monatssummen auf.</li><li>Mit <strong>Per E-Mail einreichen</strong> Text und PDF prüfen und per verbundenem Microsoft-365-Konto senden. Alternativ die bereitgestellte E-Mail-Datei öffnen und im Mailprogramm senden.</li></ol><p>Die Einträge sind in diesem Browser auf diesem Gerät gespeichert. Für Nachweise den Monatsrapport als PDF ablegen.</p><div class="actions">'+closeButton+'</div>');
+render();
+if (!storageAvailable) notify("Der Browser blockiert die lokale Speicherung. Bitte den Link in einem normalen Browserfenster öffnen.",true);
+void finishOAuth();
