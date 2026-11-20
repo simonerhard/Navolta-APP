@@ -1,7 +1,6 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const KEY = "navolta.arbeitszeiterfassung.v1";
-const AUTH = KEY + ".oauth";
 const RECIPIENTS = ["info@navolta.ch", "se@navolta.ch"];
 const MONTHS = Array.from({length:12}, (_, i) => new Intl.DateTimeFormat("de-CH", {month:"long", timeZone:"UTC"}).format(new Date(Date.UTC(2026,i,1))));
 const WEEKDAYS = ["So","Mo","Di","Mi","Do","Fr","Sa"];
@@ -17,7 +16,7 @@ const time = value => {
 const escapeHtml = value => String(value).replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[ch]);
 const daysIn = (y,m) => new Date(Date.UTC(y,m,0)).getUTCDate();
 const keyFor = (y,m,d) => y + "-" + pad(m) + "-" + pad(d);
-let state = {employees:[], selected:"", year:Number(now.slice(0,4)), month:Number(now.slice(5,7)), mail:{}};
+let state = {employees:[], selected:"", year:Number(now.slice(0,4)), month:Number(now.slice(5,7))};
 let storageAvailable = true;
 try {
   const saved = localStorage.getItem(KEY);
@@ -26,8 +25,6 @@ try {
 } catch (error) {
   storageAvailable = false;
 }
-let accessToken = "";
-let expires = 0;
 let noticeTimer;
 function notify(message, persistent = false) {
   clearTimeout(noticeTimer);
@@ -94,7 +91,7 @@ function render() {
   for (const [id,value] of Object.entries({workTotal:sums.work,absenceTotal:sums.absence,creditTotal:sums.credit,monthTotal:sums.total})) {
     $(id).textContent = duration(value) + " h";
   }
-  $("pdf").disabled = $("mail").disabled = !recorded;
+  $("pdf").disabled = $("mail").disabled = $("whatsapp").disabled = !recorded;
   $("days").innerHTML = days.map(({date,day,weekday,entry}) => {
     const weekend = [0,6].includes(weekday);
     const description = entry?.absence ? escapeHtml(entry.absence) + " · " + duration(entry.absenceMinutes) + " h" + (entry.credited ? " · angerechnet" : "") : (entry?.off ? "Arbeitsfrei" : "");
@@ -600,117 +597,93 @@ const base64 = bytes => {
 const subjectFor = report => "Arbeitszeiterfassung "+report.month+" – "+report.name;
 const bodyFor = report => "Guten Tag\n\nIm Anhang sende ich Ihnen meine Arbeitszeiterfassung für "+report.month+" mit den erfassten Arbeitszeiten und Abwesenheiten.\n\nMit freundlichen Grüssen\n"+report.name;
 
-const redirectUri = () => new URL("./",location.href).href;
-const base64url = bytes => base64(bytes).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
-const nonce = () => base64url(crypto.getRandomValues(new Uint8Array(32)));
-const scope = "https://graph.microsoft.com/Mail.Send";
-const hasToken = () => Boolean(accessToken && expires > Date.now()+60000);
-async function connectMicrosoft() {
-  const {tenant,client}=state.mail;
-  const verifier=nonce();
-  const expectedState=nonce();
-  const challenge=base64url(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(verifier))));
-  const redirect=redirectUri();
-  sessionStorage.setItem(AUTH,JSON.stringify({tenant,client,verifier,expectedState,redirect,when:Date.now()}));
-  const params=new URLSearchParams({client_id:client,response_type:"code",redirect_uri:redirect,scope,state:expectedState,code_challenge:challenge,code_challenge_method:"S256",response_mode:"query"});
-  location.assign("https://login.microsoftonline.com/"+tenant+"/oauth2/v2.0/authorize?"+params);
+const utfBase64 = value => base64(new TextEncoder().encode(value));
+const fold = value => value.match(/.{1,76}/g)?.join("\r\n") || "";
+function saveEml(report,pdf) {
+  const boundary="Navolta-Monatsrapport-"+Date.now();
+  const subject=Array.from(subjectFor(report)).reduce((chunks,char,i)=>{
+    if (i%18===0) chunks.push("");
+    chunks[chunks.length-1]+=char;
+    return chunks;
+  },[]).map(chunk=>"=?UTF-8?B?"+utfBase64(chunk)+"?=").join("\r\n ");
+  const eml=[
+    "X-Unsent: 1",
+    "To: "+RECIPIENTS.join(", "),
+    "Subject: "+subject,
+    "MIME-Version: 1.0",
+    'Content-Type: multipart/mixed; boundary="'+boundary+'"',
+    "",
+    "--"+boundary,
+    'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    fold(utfBase64(bodyFor(report).replace(/\n/g,"\r\n"))),
+    "--"+boundary,
+    'Content-Type: application/pdf; name="'+report.filename+'"',
+    'Content-Disposition: attachment; filename="'+report.filename+'"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    fold(base64(pdf)),
+    "--"+boundary+"--",
+    ""
+  ].join("\r\n");
+  download(eml,report.filename.replace(/\.pdf$/,".eml"),"message/rfc822");
 }
-async function finishOAuth() {
-  const params=new URLSearchParams(location.search);
-  if (!params.has("code") && !params.has("error")) return;
-  history.replaceState(null,"",location.pathname);
-  try {
-    const pending=JSON.parse(sessionStorage.getItem(AUTH) || "null");
-    sessionStorage.removeItem(AUTH);
-    if (!pending || pending.expectedState!==params.get("state") || Date.now()-pending.when>15*60*1000) throw new Error("Die Anmeldung ist abgelaufen. Bitte erneut verbinden.");
-    if (params.has("error")) throw new Error("Microsoft 365 hat die Anmeldung abgebrochen oder die Freigabe verweigert.");
-    const response=await fetch("https://login.microsoftonline.com/"+pending.tenant+"/oauth2/v2.0/token",{
-      method:"POST",body:new URLSearchParams({client_id:pending.client,grant_type:"authorization_code",code:params.get("code"),redirect_uri:pending.redirect,code_verifier:pending.verifier,scope})
-    });
-    if (!response.ok) throw new Error("Microsoft 365 konnte die Anmeldung nicht abschliessen. Prüfen Sie die App-ID, den Mandanten und die SPA-Weiterleitungs-URI.");
-    const token=await response.json();
-    accessToken=token.access_token;
-    expires=Date.now()+Number(token.expires_in)*1000;
-    notify("Microsoft 365 ist für diese Sitzung verbunden.");
-  } catch(error) {
-    notify(error.message || "Microsoft 365 konnte nicht verbunden werden.",true);
-  }
-}
-function mailSettings(fromSend=false) {
-  const enabled=location.protocol==="https:" || location.hostname==="localhost" || location.hostname==="127.0.0.1";
-  openDialog("Microsoft 365 für den Versand verbinden",
-    '<p class="intro">'+(hasToken()?'Microsoft 365 ist für diese Sitzung verbunden.':'Für den Versand sendet die App über das verbundene Geschäfts-Postfach. Dazu sind die Microsoft-Entra-App der Navolta AG und die Anmeldung mit dem Geschäftsaccount erforderlich.')+'</p>'+
-    (fromSend?'<p>Nach der Anmeldung in der Arbeitszeiterfassung <strong>Monatsrapport senden</strong> wählen.</p>':'')+
-    '<form id="mailConfig"><div class="field"><label for="tenant">Verzeichnis-ID oder verifizierte Microsoft-365-Domain</label><input id="tenant" autocomplete="off" maxlength="100" required value="'+escapeHtml(state.mail.tenant || "")+'"></div>'+
-    '<div class="field"><label for="client">Anwendungs-ID (Client-ID)</label><input id="client" autocomplete="off" maxlength="36" required value="'+escapeHtml(state.mail.client || "")+'"></div>'+
-    '<details><summary>Angaben für die IT</summary><p>In Microsoft Entra eine App für das eigene Organisationsverzeichnis registrieren. Als Plattform «Single-Page Application» wählen und die folgende Weiterleitungs-URI hinterlegen.</p><p><code>'+escapeHtml(redirectUri())+'</code></p><p>Unter Microsoft Graph die delegierte Berechtigung <code>Mail.Send</code> hinzufügen und bei Bedarf freigeben. Die App verwendet kein Clientgeheimnis.</p></details>'+
-    '<p id="mailConfigError" class="alert" role="alert">'+(enabled?'':'Für die Microsoft-Anmeldung die App über HTTPS öffnen.')+'</p>'+
-    '<div class="actions">'+closeButton+'<button type="submit" class="primary" '+(enabled?'':'disabled')+'>Mit Microsoft 365 verbinden</button></div></form>');
-  $("mailConfig").onsubmit=async event=>{
-    event.preventDefault();
-    const tenant=$("tenant").value.trim().toLowerCase();
-    const client=$("client").value.trim().toLowerCase();
-    const guid=/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/;
-    const domain=/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
-    if ((!guid.test(tenant) && !domain.test(tenant)) || !guid.test(client)) {
-      $("mailConfigError").textContent="Bitte eine gültige Verzeichnis-ID oder Domain und eine gültige Anwendungs-ID eingeben.";
-      return;
-    }
-    if (!save({...state,mail:{tenant,client}})) return;
-    accessToken="";
-    event.submitter.disabled=true;
-    try { await connectMicrosoft(); }
-    catch(error) {
-      event.submitter.disabled=false;
-      $("mailConfigError").textContent="Die Anmeldung konnte nicht gestartet werden. Browser und sichere Verbindung prüfen.";
-    }
-  };
-}
-let sendingMail=false;
-async function sendReport(report,pdf) {
-  const result=await fetch("https://graph.microsoft.com/v1.0/me/sendMail",{
-    method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
-    body:JSON.stringify({
-      message:{
-        subject:subjectFor(report),
-        body:{contentType:"Text",content:bodyFor(report)},
-        toRecipients:RECIPIENTS.map(address=>({emailAddress:{address}})),
-        attachments:[{"@odata.type":"#microsoft.graph.fileAttachment",name:report.filename,contentType:"application/pdf",contentBytes:base64(pdf)}]
-      },
-      saveToSentItems:true
-    })
-  });
-  if (result.status===401) {
-    accessToken="";
-    throw new Error("Die Microsoft-Anmeldung ist abgelaufen. Bitte Microsoft 365 erneut verbinden.");
-  }
-  if (result.status===403) throw new Error("Microsoft 365 hat den Versand verweigert. Bitte die Freigabe für Mail.Send prüfen.");
-  if (result.status!==202) throw new Error("Microsoft 365 hat den Versand nicht bestätigt. Bitte vor einem erneuten Versuch den Ordner «Gesendete Elemente» prüfen.");
-}
-async function sendSelectedMonth() {
-  if (sendingMail) return;
-  if (!hasToken()) { mailSettings(true); return; }
+function openMail() {
   const report=reportForSelection();
-  openDialog("Monatsrapport senden",
-    '<p><strong>An</strong><br>'+RECIPIENTS.join(", ")+'</p><p><strong>Betreff</strong><br>'+escapeHtml(subjectFor(report))+'</p>'+
-    '<p><strong>PDF-Anhang</strong><br>'+escapeHtml(report.filename)+'</p>'+
-    '<p id="sendStatus" role="status">PDF wird erstellt …</p><div class="actions">'+closeButton+'</div>');
-  const status=$("sendStatus"), close=$("closeDialog");
-  sendingMail=true;
-  close.disabled=true;
-  try {
-    const pdf=await makePdf(report).catch(()=>{ throw new Error("Das PDF konnte nicht erstellt werden. Bitte Seite neu laden und erneut versuchen."); });
-    status.textContent="Microsoft 365 wird mit dem Versand beauftragt …";
-    await sendReport(report,pdf);
-    status.textContent="Microsoft 365 hat die E-Mail mit PDF-Anhang zum Versand angenommen.";
-  } catch(error) {
-    status.textContent=error instanceof TypeError ? "Verbindung unterbrochen. Bitte vor einem erneuten Versuch in Outlook unter «Gesendete Elemente» nachsehen." : error.message;
-  } finally {
-    sendingMail=false;
-    close.disabled=false;
-  }
+  const mailto="mailto:"+RECIPIENTS.join(",")+"?subject="+encodeURIComponent(subjectFor(report))+"&body="+encodeURIComponent(bodyFor(report).replace(/\n/g,"\r\n"));
+  openDialog("Per E-Mail senden",
+    '<p><strong>An</strong><br>'+RECIPIENTS.join(", ")+'</p>'+
+    '<p>Die E-Mail-Datei enthält Betreff, Nachricht und den PDF-Anhang. Öffne sie in deiner Mail-App und sende sie mit deinem eigenen Konto.</p>'+
+    '<p id="emailStatus" role="status">E-Mail-Datei wird erstellt …</p>'+
+    '<details><summary>Über die Standard-Mail-App</summary><p>Falls deine Mail-App die E-Mail-Datei ohne Sendefunktion öffnet, öffne eine neue Nachricht mit den vorausgefüllten Empfängern. Das PDF wird heruntergeladen und kann angefügt werden.</p>'+
+    '<p><a id="standardMail" href="'+escapeHtml(mailto)+'" hidden>Mail-App öffnen und PDF herunterladen</a></p></details>'+
+    '<div class="actions">'+closeButton+'<button id="downloadEmail" class="primary" type="button">E-Mail-Datei herunterladen</button></div>');
+  const button=$("downloadEmail"), status=$("emailStatus"), standard=$("standardMail");
+  let pdf;
+  button.onclick=async()=>{
+    button.disabled=true;
+    try {
+      pdf ||= await makePdf(report);
+      saveEml(report,pdf);
+      standard.hidden=false;
+      status.textContent="E-Mail-Datei mit PDF-Anhang zum Download bereit.";
+    } catch { status.textContent="Die E-Mail-Datei konnte nicht erstellt werden. Bitte erneut versuchen."; }
+    finally { button.disabled=false; }
+  };
+  standard.onclick=()=>download(pdf,report.filename,"application/pdf");
+  button.click();
 }
-$("dialog").addEventListener("cancel",event=>{if(sendingMail) event.preventDefault();});
+function openWhatsApp() {
+  const report=reportForSelection();
+  const message=bodyFor(report);
+  const url="https://wa.me/?text="+encodeURIComponent(message);
+  openDialog("Per WhatsApp senden",
+    '<p id="whatsappStatus" role="status">PDF wird erstellt …</p>'+
+    '<p><a id="whatsappWeb" href="'+escapeHtml(url)+'" target="_blank" rel="noopener noreferrer" hidden>WhatsApp öffnen und PDF herunterladen</a></p>'+
+    '<div class="actions">'+closeButton+'<button id="shareWhatsApp" class="primary" type="button" hidden>PDF teilen</button></div>');
+  const status=$("whatsappStatus"), native=$("shareWhatsApp"), web=$("whatsappWeb");
+  void (async()=>{
+    let pdf;
+    try { pdf=await makePdf(report); }
+    catch { status.textContent="Das PDF konnte nicht erstellt werden. Bitte die Seite neu laden und erneut versuchen."; return; }
+    const shareData={files:[new File([pdf],report.filename,{type:"application/pdf"})],title:subjectFor(report),text:message};
+    const canShare=typeof navigator.share==="function" && navigator.canShare?.(shareData);
+    web.hidden=false;
+    native.hidden=!canShare;
+    status.textContent=canShare ? "«PDF teilen» wählen und im Teilen-Menü WhatsApp und den gewünschten Chat auswählen." : "WhatsApp öffnen, den gewünschten Chat auswählen und das heruntergeladene PDF anfügen.";
+    web.onclick=()=>download(pdf,report.filename,"application/pdf");
+    if (canShare) native.onclick=async()=>{
+      native.disabled=true;
+      try {
+        await navigator.share(shareData);
+        status.textContent="Den Versand im ausgewählten Chat abschliessen.";
+      } catch(error) {
+        if (error.name!=="AbortError") status.textContent="Das Teilen-Menü konnte nicht geöffnet werden. WhatsApp über den Link öffnen und das PDF anfügen.";
+      } finally { native.disabled=false; }
+    };
+  })();
+}
 $("month").replaceChildren(...MONTHS.map((month,index)=>new Option(month,index+1)));
 $("employee").onchange=event=>updateSelection({selected:event.target.value});
 $("month").onchange=event=>updateSelection({month:Number(event.target.value)});
@@ -731,12 +704,11 @@ $("pdf").onclick=async event=>{
   catch { notify("Das PDF konnte nicht erstellt werden. Bitte die Seite neu laden und erneut versuchen.",true); }
   finally { render(); }
 };
-$("mail").onclick=sendSelectedMonth;
-$("mailSettings").onclick=()=>mailSettings();
+$("mail").onclick=openMail;
+$("whatsapp").onclick=openWhatsApp;
 $("gavSettings").onclick=editGavSettings;
 $("vacationSettings").onclick=editVacationSettings;
 $("help").onclick=()=>openDialog("Anleitung",
-  '<ol><li>Mit dem Plus ein Mitarbeiterprofil mit Vor- und Nachnamen erstellen. Anschliessend Monat und Jahr auswählen.</li><li>Beim gewünschten Datum <strong>Erfassen</strong> wählen. Bis zu vier Arbeitsblöcke angeben. Unterbrüche zwischen den Blöcken fliessen automatisch in die Nettozeit ein. Pausen innerhalb eines Blocks als zusätzliche Minuten eintragen.</li><li>Ferien, Krankheit oder andere Abwesenheiten mit Dauer erfassen. Mit <strong>Im Monatstotal anrechnen</strong> festlegen, ob die Stunden zum Monatstotal zählen. Arbeitsfreie Tage entsprechend markieren.</li><li>Für wiederkehrende Tätigkeiten einen gespeicherten Tag öffnen und <strong>Auf Folgetage kopieren</strong> wählen.</li><li>Unter <strong>GAV-Einstellungen</strong> bei Bedarf Pensum, Anstellungszeitraum und den erfassten Zeitraum anpassen. Der GAV-Ausweis zeigt den vorläufigen Jahressaldo, die Wochenwerte und die Zuschläge separat.</li><li>Unter <strong>Ferienkonto bearbeiten</strong> den Anspruch pro Jahr, den Übertrag und die Stunden pro Ferientag hinterlegen. Als Ferien erfasste Abwesenheiten werden automatisch abgezogen.</li><li>Monat kontrollieren. Das PDF führt sämtliche Kalendertage, Arbeitsblöcke, Pausen, Nettozeiten, Abwesenheiten und Monatssummen auf.</li><li>Den Monat prüfen und <strong>Monatsrapport senden</strong> wählen. Die App sendet die E-Mail samt PDF direkt über das verbundene Microsoft-365-Postfach. Vor dem ersten Versand <strong>Microsoft 365 verbinden</strong> wählen.</li></ol><p>Die Einträge sind in diesem Browser auf diesem Gerät gespeichert. Für Nachweise den Monatsrapport als PDF ablegen.</p><div class="actions">'+closeButton+'</div>');
+  '<ol><li>Mit dem Plus ein Mitarbeiterprofil mit Vor- und Nachnamen erstellen. Anschliessend Monat und Jahr auswählen.</li><li>Beim gewünschten Datum <strong>Erfassen</strong> wählen. Bis zu vier Arbeitsblöcke angeben. Unterbrüche zwischen den Blöcken fliessen automatisch in die Nettozeit ein. Pausen innerhalb eines Blocks als zusätzliche Minuten eintragen.</li><li>Ferien, Krankheit oder andere Abwesenheiten mit Dauer erfassen. Mit <strong>Im Monatstotal anrechnen</strong> festlegen, ob die Stunden zum Monatstotal zählen. Arbeitsfreie Tage entsprechend markieren.</li><li>Für wiederkehrende Tätigkeiten einen gespeicherten Tag öffnen und <strong>Auf Folgetage kopieren</strong> wählen.</li><li>Unter <strong>GAV-Einstellungen</strong> bei Bedarf Pensum, Anstellungszeitraum und den erfassten Zeitraum anpassen. Der GAV-Ausweis zeigt den vorläufigen Jahressaldo, die Wochenwerte und die Zuschläge separat.</li><li>Unter <strong>Ferienkonto bearbeiten</strong> den Anspruch pro Jahr, den Übertrag und die Stunden pro Ferientag hinterlegen. Als Ferien erfasste Abwesenheiten werden automatisch abgezogen.</li><li>Monat kontrollieren. Das PDF führt sämtliche Kalendertage, Arbeitsblöcke, Pausen, Nettozeiten, Abwesenheiten und Monatssummen auf.</li><li><strong>Per E-Mail</strong> wählen. Die heruntergeladene E-Mail-Datei enthält das PDF und beide Navolta-Adressen. In der eigenen Mail-App öffnen und auf <strong>Senden</strong> klicken.</li><li><strong>Per WhatsApp</strong> wählen. Mit <strong>PDF teilen</strong> öffnest du das Teilen-Menü und wählst WhatsApp und den Chat. Falls das Teilen-Menü fehlt, WhatsApp über den angezeigten Link öffnen und das heruntergeladene PDF anfügen.</li></ol><p>Die Einträge sind in diesem Browser auf diesem Gerät gespeichert. Für Nachweise den Monatsrapport als PDF ablegen.</p><div class="actions">'+closeButton+'</div>');
 render();
 if (!storageAvailable) notify("Der Browser blockiert die lokale Speicherung. Bitte den Link in einem normalen Browserfenster öffnen.",true);
-void finishOAuth();
