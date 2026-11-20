@@ -6,9 +6,9 @@
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#082944">
 <title>Arbeitszeiterfassung | Navolta AG</title>
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=3">
 <script src="gav.js?v=2" defer></script>
-<script src="app.js?v=2" defer></script>
+<script src="app.js?v=3" defer></script>
 </head>
 <body>
 <header class="top"><div class="frame top-inner">
@@ -35,6 +35,10 @@
   <section id="gavPanel" class="gav-panel" aria-labelledby="gavTitle" hidden>
     <div class="ledger-head"><div><h2 id="gavTitle">Überstunden nach GAV Elektro</h2><p id="gavStatus"></p></div><button id="gavSettings" class="secondary" type="button">GAV-Einstellungen</button></div>
     <div id="gavContent"></div>
+  </section>
+  <section id="vacationPanel" class="gav-panel" aria-labelledby="vacationTitle" hidden>
+    <div class="ledger-head"><div><h2 id="vacationTitle">Ferienguthaben</h2><p id="vacationStatus"></p></div><button id="vacationSettings" class="secondary" type="button">Ferienkonto bearbeiten</button></div>
+    <div id="vacationContent" class="gav-grid vacation-grid"></div>
   </section>
   <section class="ledger" aria-labelledby="period">
     <div class="ledger-head"><div><h2 id="period"></h2><p id="coverage"></p></div><button id="today" class="secondary" type="button">Aktueller Monat</button></div>

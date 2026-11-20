@@ -90,6 +90,7 @@ function render() {
   const sums = totalsFor(days);
   const gav = gavAccount(person,state.year,state.month,now);
   renderGav(person,gav);
+  renderVacation(person);
   for (const [id,value] of Object.entries({workTotal:sums.work,absenceTotal:sums.absence,creditTotal:sums.credit,monthTotal:sums.total})) {
     $(id).textContent = duration(value) + " h";
   }
@@ -138,7 +139,9 @@ function editDay(date) {
   const person = employee();
   const entry = person.days[date] || blank();
   const prettyDate = swissDate(date);
-  const showGav = Number(date.slice(0,4))>=2026 && Number(date.slice(0,4))<=2029;
+  const year = Number(date.slice(0,4));
+  const showGav = year>=2026 && year<=2029;
+  const vacation = person.vacation?.[year];
   const slotHtml = Array.from({length:4}, (_,i) => {
     const [from,to] = entry.slots[i] || ["",""];
     return '<div class="slot"><label>Von '+(i+1)+'<input type="time" id="from'+i+'" value="'+from+'"></label><label>Bis '+(i+1)+'<input type="time" id="to'+i+'" value="'+(to === "24:00" ? "00:00" : to)+'"></label></div>';
@@ -149,7 +152,9 @@ function editDay(date) {
     '<div class="field"><label for="breakMinutes">Zusätzliche Pause (Minuten)</label><input type="number" id="breakMinutes" min="0" max="1439" value="'+entry.breakMinutes+'" required></div>'+
     '<div class="field"><label for="breakStart">Beginn der Zusatzpause</label><input type="time" id="breakStart" value="'+escapeHtml(entry.breakStart || "")+'"><small>Bei Arbeit über eine Zuschlagsgrenze bitte angeben.</small></div></fieldset>'+
     '<fieldset><legend>Abwesenheit</legend><div class="field"><label for="absence">Art</label><select id="absence"><option value="">Keine</option>'+ABSENCES.map(item=>'<option'+(item===entry.absence?' selected':'')+'>'+escapeHtml(item)+'</option>').join("")+'</select></div>'+
-    '<div id="absenceFields" hidden><div class="grid"><div class="field"><label for="absHours">Stunden</label><input type="number" id="absHours" min="0" max="24" value="'+Math.floor(entry.absenceMinutes/60)+'"></div><div class="field"><label for="absMins">Minuten</label><input type="number" id="absMins" min="0" max="59" value="'+entry.absenceMinutes%60+'"></div></div><p><label class="check"><input id="credited" type="checkbox" '+(entry.credited?"checked":"")+'> Im Monatstotal anrechnen</label></p></div></fieldset>'+
+    '<div id="absenceFields" hidden><div class="grid"><div class="field"><label for="absHours">Stunden</label><input type="number" id="absHours" min="0" max="24" value="'+Math.floor(entry.absenceMinutes/60)+'"></div><div class="field"><label for="absMins">Minuten</label><input type="number" id="absMins" min="0" max="59" value="'+entry.absenceMinutes%60+'"></div></div>'+
+    (vacation?'<div id="vacationPresets" class="group vacation-presets" hidden><button class="secondary" id="halfVacation" type="button">½ Ferientag</button><button class="secondary" id="fullVacation" type="button">1 Ferientag</button></div>':'')+
+    '<p><label class="check"><input id="credited" type="checkbox" '+(entry.credited?"checked":"")+'> Im Monatstotal anrechnen</label></p></div></fieldset>'+
     '<fieldset'+(showGav?'':' hidden')+'><legend>GAV Elektro</legend><p class="intro">Überstunden, Überzeit und Zuschläge werden aus den erfassten Zeiten berechnet.</p>'+
     '<label class="check"><input id="holiday" type="checkbox" '+(entry.holiday?"checked":"")+'> Arbeit an einem anerkannten Feiertag</label>'+
     '<div class="field"><label for="vorhol">Vereinbarte Vorholzeit (Minuten)</label><input type="number" id="vorhol" min="0" max="1440" value="'+(entry.vorhol ?? entry.extra?.[2] ?? 0)+'"></div>'+
@@ -159,8 +164,18 @@ function editDay(date) {
   const toggle = () => {
     $("dayFields").hidden = $("off").checked;
     $("absenceFields").hidden = !$("absence").value;
+    if ($("vacationPresets")) $("vacationPresets").hidden = $("absence").value!=="Ferien";
     $("dayFields").querySelectorAll("input, select").forEach(input => { input.disabled = $("off").checked || ($("absenceFields").contains(input) && !$("absence").value); });
   };
+  if (vacation) {
+    const setVacation = minutes => {
+      $("absHours").value = Math.floor(minutes/60);
+      $("absMins").value = minutes%60;
+      $("credited").checked = true;
+    };
+    $("halfVacation").onclick = () => setVacation(Math.round(vacation.dailyMinutes/2));
+    $("fullVacation").onclick = () => setVacation(vacation.dailyMinutes);
+  }
   toggle();
   $("off").onchange = $("absence").onchange = toggle;
   const write = value => {
@@ -350,12 +365,76 @@ function copyDay(date,person) {
   };
 }
 
+function vacationAccount(person,year,month) {
+  const settings = person.vacation?.[year];
+  const monthStart = keyFor(year,month,1), through = keyFor(year,month,daysIn(year,month));
+  const yearStart = keyFor(year,1,1);
+  let monthUsed=0, yearUsed=0;
+  for (const [date,entry] of Object.entries(person.days)) {
+    if (entry.absence!=="Ferien" || date<yearStart || date>through) continue;
+    yearUsed += entry.absenceMinutes;
+    if (date>=monthStart) monthUsed += entry.absenceMinutes;
+  }
+  const daily = settings?.dailyMinutes;
+  const entitlement = settings ? Math.round(settings.entitlementDays*daily) : null;
+  const carry = settings ? Math.round(settings.carryDays*daily) : null;
+  return {settings,daily,entitlement,carry,monthUsed,yearUsed,through,remaining:settings ? entitlement+carry-yearUsed : null};
+}
+const formatVacationDays = new Intl.NumberFormat("de-CH",{maximumFractionDigits:2,useGrouping:false});
+function vacationDays(amount,daily) {
+  const days = amount/daily;
+  return formatVacationDays.format(days)+(Math.abs(days)===1?" Tag":" Tage");
+}
+function vacationAmount(amount,daily) {
+  const hours = amount<0 ? signedHours(amount) : h(amount);
+  return daily ? vacationDays(amount,daily)+" ("+hours+")" : hours;
+}
+function renderVacation(person) {
+  $("vacationPanel").hidden=!person;
+  if (!person) return;
+  const {settings,daily,entitlement,carry,monthUsed,yearUsed,remaining,through}=vacationAccount(person,state.year,state.month);
+  $("vacationStatus").textContent = "Stand "+swissDate(through)+(settings ? " · 1 Ferientag entspricht "+h(daily) : " · Jahresanspruch noch erfassen");
+  const cards = [
+    ["Jahresanspruch",entitlement,settings?"Übertrag / Korrektur "+vacationAmount(carry,daily):""],
+    ["Ferienbezug im Monat",monthUsed,""],
+    ["Ferienbezug im Jahr",yearUsed,"Bis Ende des gewählten Monats"],
+    ["Restguthaben",remaining,"Anspruch und Übertrag abzüglich Bezug"]
+  ];
+  $("vacationContent").innerHTML=cards.map(([label,amount,sub],i)=>'<div class="stat'+(i===3?' vacation-balance':'')+'"><span>'+label+'</span><strong>'+
+    (amount===null?"–":daily?vacationDays(amount,daily):h(amount))+'</strong>'+
+    (daily && amount!==null?'<small>'+(amount<0?signedHours(amount):h(amount))+'</small>':'')+
+    (sub?'<small>'+sub+'</small>':'')+'</div>').join("");
+}
+function editVacationSettings() {
+  const person = employee(), year=state.year;
+  const current = person.vacation?.[year];
+  openDialog("Ferienkonto bearbeiten · "+year,
+    '<p class="intro">'+escapeHtml(person.name)+' · Vertraglichen Jahresanspruch, bestätigten Übertrag und die vereinbarte Dauer eines Ferientags eintragen.</p>'+
+    '<form id="vacationForm"><div class="grid"><div class="field"><label for="vacationEntitlement">Jahresanspruch (Tage)</label><input id="vacationEntitlement" required type="number" min="0" max="366" step="0.01" value="'+(current?.entitlementDays ?? "")+'"></div>'+
+    '<div class="field"><label for="vacationCarry">Übertrag / Korrektur (Tage)</label><input id="vacationCarry" required type="number" min="-366" max="366" step="0.01" value="'+(current?.carryDays ?? 0)+'"></div></div>'+
+    '<div class="field"><label for="vacationDaily">Dauer eines Ferientags (Std:Min)</label><input id="vacationDaily" maxlength="5" required value="'+duration(current?.dailyMinutes ?? 480)+'"></div>'+
+    '<p class="intro">Bei Teilzeit die vereinbarte Tagesdauer und den persönlichen Anspruch eintragen. Der Übertrag kann auch negativ sein.</p>'+
+    '<p id="vacationError" class="alert" role="alert"></p><div class="actions">'+cancelButton+'<button class="primary" type="submit">Speichern</button></div></form>');
+  $("vacationForm").onsubmit=event=>{
+    event.preventDefault();
+    const raw = $("vacationDaily").value.trim();
+    const dailyMinutes = /^\d{1,2}:[0-5]\d$/.test(raw) ? time(raw) : 0;
+    if (dailyMinutes<1 || dailyMinutes>1440) {
+      $("vacationError").textContent="Die Dauer im Format Stunden:Minuten bis 24:00 eingeben, zum Beispiel 8:00.";
+      return;
+    }
+    const config = {dailyMinutes,entitlementDays:Number($("vacationEntitlement").value),carryDays:Number($("vacationCarry").value)};
+    const employees=state.employees.map(item=>item.id===person.id ? {...item,vacation:{...item.vacation,[year]:config}} : item);
+    if (save({...state,employees})) { $("dialog").close(); render(); }
+  };
+}
+
 function reportForSelection() {
   const person = employee();
   const days = datesFor(person,state.year,state.month);
   const month = MONTHS[state.month-1]+" "+state.year;
   const basename = person.name.normalize("NFKD").replace(/\p{Mark}/gu,"").replace(/[^a-zA-Z0-9]+/g,"_").replace(/^_|_$/g,"") || "Mitarbeiter";
-  return {name:person.name,month,days,sums:totalsFor(days),gav:gavAccount(person,state.year,state.month,now),filename:"Navolta_Arbeitszeit_"+state.year+"-"+pad(state.month)+"_"+basename+".pdf",open:days.filter(day=>!day.entry && ![0,6].includes(day.weekday)).length};
+  return {name:person.name,month,days,sums:totalsFor(days),gav:gavAccount(person,state.year,state.month,now),vacation:vacationAccount(person,state.year,state.month),filename:"Navolta_Arbeitszeit_"+state.year+"-"+pad(state.month)+"_"+basename+".pdf",open:days.filter(day=>!day.entry && ![0,6].includes(day.weekday)).length};
 }
 const splitLines = (value, limit) => String(value).split(/\r?\n/).flatMap(line => {
   const lines = [];
@@ -428,6 +507,15 @@ async function makePdf(report) {
     text("GAV Elektro 2026–2029 · separater Ausweis",43,y+16,10,true);
     lines.forEach((line,i)=>text(line,43,y+31+i*12,8));
     y += 43+lines.length*12;
+  }
+  if (report.vacation.settings || report.vacation.yearUsed) {
+    const {settings,daily,entitlement,carry,monthUsed,yearUsed,remaining} = report.vacation;
+    const balance = settings ? " · Restguthaben "+vacationAmount(remaining,daily) : " · Jahresanspruch noch offen";
+    rect(35,y,525,settings ? 52 : 38,grey);
+    text("Ferienkonto bis "+swissDate(report.vacation.through),43,y+14,10,true);
+    text("Monatsbezug "+vacationAmount(monthUsed,daily)+" · Jahresbezug "+vacationAmount(yearUsed,daily)+balance,43,y+29,8);
+    if (settings) text("Jahresanspruch "+vacationAmount(entitlement,daily)+" · Übertrag / Korrektur "+vacationAmount(carry,daily)+" · 1 Ferientag = "+h(daily),43,y+43,8);
+    y += settings ? 59 : 45;
   }
   tableHead();
   for (const {date,weekday,entry} of report.days) {
@@ -684,8 +772,9 @@ $("pdf").onclick=async event=>{
 $("mail").onclick=showMail;
 $("mailSettings").onclick=()=>mailSettings();
 $("gavSettings").onclick=editGavSettings;
+$("vacationSettings").onclick=editVacationSettings;
 $("help").onclick=()=>openDialog("Anleitung",
-  '<ol><li>Mit dem Plus ein Mitarbeiterprofil mit Vor- und Nachnamen erstellen. Anschliessend Monat und Jahr auswählen.</li><li>Beim gewünschten Datum <strong>Erfassen</strong> wählen. Bis zu vier Arbeitsblöcke angeben. Unterbrüche zwischen den Blöcken fliessen automatisch in die Nettozeit ein. Pausen innerhalb eines Blocks als zusätzliche Minuten eintragen.</li><li>Ferien, Krankheit oder andere Abwesenheiten mit Dauer erfassen. Mit <strong>Im Monatstotal anrechnen</strong> festlegen, ob die Stunden zum Monatstotal zählen. Arbeitsfreie Tage entsprechend markieren.</li><li>Für wiederkehrende Tätigkeiten einen gespeicherten Tag öffnen und <strong>Auf Folgetage kopieren</strong> wählen.</li><li>Unter <strong>GAV-Einstellungen</strong> bei Bedarf Pensum, Anstellungszeitraum und den erfassten Zeitraum anpassen. Der GAV-Ausweis zeigt den vorläufigen Jahressaldo, die Wochenwerte und die Zuschläge separat.</li><li>Monat kontrollieren. Das PDF führt sämtliche Kalendertage, Arbeitsblöcke, Pausen, Nettozeiten, Abwesenheiten und Monatssummen auf.</li><li>Mit <strong>Per E-Mail einreichen</strong> Text und PDF prüfen und per verbundenem Microsoft-365-Konto senden. Alternativ die bereitgestellte E-Mail-Datei öffnen und im Mailprogramm senden.</li></ol><p>Die Einträge sind in diesem Browser auf diesem Gerät gespeichert. Für Nachweise den Monatsrapport als PDF ablegen.</p><div class="actions">'+closeButton+'</div>');
+  '<ol><li>Mit dem Plus ein Mitarbeiterprofil mit Vor- und Nachnamen erstellen. Anschliessend Monat und Jahr auswählen.</li><li>Beim gewünschten Datum <strong>Erfassen</strong> wählen. Bis zu vier Arbeitsblöcke angeben. Unterbrüche zwischen den Blöcken fliessen automatisch in die Nettozeit ein. Pausen innerhalb eines Blocks als zusätzliche Minuten eintragen.</li><li>Ferien, Krankheit oder andere Abwesenheiten mit Dauer erfassen. Mit <strong>Im Monatstotal anrechnen</strong> festlegen, ob die Stunden zum Monatstotal zählen. Arbeitsfreie Tage entsprechend markieren.</li><li>Für wiederkehrende Tätigkeiten einen gespeicherten Tag öffnen und <strong>Auf Folgetage kopieren</strong> wählen.</li><li>Unter <strong>GAV-Einstellungen</strong> bei Bedarf Pensum, Anstellungszeitraum und den erfassten Zeitraum anpassen. Der GAV-Ausweis zeigt den vorläufigen Jahressaldo, die Wochenwerte und die Zuschläge separat.</li><li>Unter <strong>Ferienkonto bearbeiten</strong> den Anspruch pro Jahr, den Übertrag und die Stunden pro Ferientag hinterlegen. Als Ferien erfasste Abwesenheiten werden automatisch abgezogen.</li><li>Monat kontrollieren. Das PDF führt sämtliche Kalendertage, Arbeitsblöcke, Pausen, Nettozeiten, Abwesenheiten und Monatssummen auf.</li><li>Mit <strong>Per E-Mail einreichen</strong> Text und PDF prüfen und per verbundenem Microsoft-365-Konto senden. Alternativ die bereitgestellte E-Mail-Datei öffnen und im Mailprogramm senden.</li></ol><p>Die Einträge sind in diesem Browser auf diesem Gerät gespeichert. Für Nachweise den Monatsrapport als PDF ablegen.</p><div class="actions">'+closeButton+'</div>');
 render();
 if (!storageAvailable) notify("Der Browser blockiert die lokale Speicherung. Bitte den Link in einem normalen Browserfenster öffnen.",true);
 void finishOAuth();

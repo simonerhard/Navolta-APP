@@ -107,3 +107,6 @@ footer{font-size:.8rem}
   .gav-weeks td,.gav-weeks th{padding:4px}.gav-weeks .table-wrap{overflow:auto}
   .ledger tbody td:first-child,.ledger tbody td:last-child{grid-row:1/7}
 }
+.vacation-grid{padding-bottom:15px}
+.vacation-grid .vacation-balance{background:#dceef9;border-color:#bbdbec;color:#08466c}
+.vacation-presets{margin-top:9px;flex-wrap:wrap}
