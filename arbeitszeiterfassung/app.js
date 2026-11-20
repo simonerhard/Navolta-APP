@@ -699,6 +699,48 @@ function mailSettings(continueToMail=false) {
     }
   };
 }
+function outlookComposeUrl(report) {
+  const fields = {to:RECIPIENTS.join(";"),subject:subjectFor(report),body:bodyFor(report).replace(/\n/g,"\r\n")};
+  const query = Object.entries(fields).map(([name,value])=>name+"="+encodeURIComponent(value)).join("&");
+  return "https://outlook.office.com/mail/deeplink/compose?"+query;
+}
+function openOutlook() {
+  const report=reportForSelection();
+  openDialog("Monatsrapport in Outlook",
+    '<p>Outlook öffnet eine neue Nachricht an <strong>'+RECIPIENTS.join(" und ")+'</strong>. Betreff und Nachrichtentext sind vorausgefüllt.</p>'+
+    '<p>Das PDF aus den Downloads in Outlook über <strong>Anfügen → Diesen Computer durchsuchen</strong> auswählen. Anschliessend in Outlook auf <strong>Senden</strong> klicken.</p>'+
+    '<p><strong>'+escapeHtml(report.filename)+'</strong></p>'+
+    (report.open?'<p class="alert">'+report.open+' offene Werktage sind im PDF gekennzeichnet.</p>':'')+
+    '<p id="outlookFileStatus" role="status">PDF wird erstellt …</p>'+
+    '<p><a id="outlookCompose" href="'+escapeHtml(outlookComposeUrl(report))+'" target="_blank" rel="noopener noreferrer">Outlook erneut öffnen</a></p>'+
+    '<details><summary>Weitere Versandoptionen</summary><div class="actions"><button id="outlookEml" class="secondary" type="button">E-Mail-Datei mit PDF herunterladen</button><button id="outlookDirect" class="secondary" type="button">Microsoft-365-Direktversand</button></div></details>'+
+    '<div class="actions">'+closeButton+'<button id="outlookPdf" class="primary" type="button">PDF herunterladen</button></div>');
+  const compose=$("outlookCompose");
+  const pdfButton=$("outlookPdf");
+  const emlButton=$("outlookEml");
+  const status=$("outlookFileStatus");
+  let pdfPromise;
+  async function downloadReport(asEmail=false) {
+    const button=asEmail ? emlButton : pdfButton;
+    button.disabled=true;
+    try {
+      pdfPromise ||= makePdf(report);
+      const pdf=await pdfPromise;
+      if (asEmail) saveEml(report,pdf);
+      else download(pdf,report.filename,"application/pdf");
+      status.textContent=asEmail ? "E-Mail-Datei mit PDF bereit." : "PDF-Download gestartet.";
+    } catch {
+      pdfPromise=undefined;
+      status.textContent="Die Datei konnte nicht erstellt werden. Bitte erneut versuchen.";
+    } finally { button.disabled=false; }
+  }
+  pdfButton.onclick=()=>downloadReport();
+  emlButton.onclick=()=>downloadReport(true);
+  $("outlookDirect").onclick=showMail;
+  // Open Outlook while the click still counts as a user gesture.
+  compose.click();
+  void downloadReport();
+}
 let sending=false;
 function showMail() {
   const report=reportForSelection();
@@ -769,12 +811,12 @@ $("pdf").onclick=async event=>{
   catch { notify("Das PDF konnte nicht erstellt werden. Bitte die Seite neu laden und erneut versuchen.",true); }
   finally { render(); }
 };
-$("mail").onclick=showMail;
+$("mail").onclick=openOutlook;
 $("mailSettings").onclick=()=>mailSettings();
 $("gavSettings").onclick=editGavSettings;
 $("vacationSettings").onclick=editVacationSettings;
 $("help").onclick=()=>openDialog("Anleitung",
-  '<ol><li>Mit dem Plus ein Mitarbeiterprofil mit Vor- und Nachnamen erstellen. Anschliessend Monat und Jahr auswählen.</li><li>Beim gewünschten Datum <strong>Erfassen</strong> wählen. Bis zu vier Arbeitsblöcke angeben. Unterbrüche zwischen den Blöcken fliessen automatisch in die Nettozeit ein. Pausen innerhalb eines Blocks als zusätzliche Minuten eintragen.</li><li>Ferien, Krankheit oder andere Abwesenheiten mit Dauer erfassen. Mit <strong>Im Monatstotal anrechnen</strong> festlegen, ob die Stunden zum Monatstotal zählen. Arbeitsfreie Tage entsprechend markieren.</li><li>Für wiederkehrende Tätigkeiten einen gespeicherten Tag öffnen und <strong>Auf Folgetage kopieren</strong> wählen.</li><li>Unter <strong>GAV-Einstellungen</strong> bei Bedarf Pensum, Anstellungszeitraum und den erfassten Zeitraum anpassen. Der GAV-Ausweis zeigt den vorläufigen Jahressaldo, die Wochenwerte und die Zuschläge separat.</li><li>Unter <strong>Ferienkonto bearbeiten</strong> den Anspruch pro Jahr, den Übertrag und die Stunden pro Ferientag hinterlegen. Als Ferien erfasste Abwesenheiten werden automatisch abgezogen.</li><li>Monat kontrollieren. Das PDF führt sämtliche Kalendertage, Arbeitsblöcke, Pausen, Nettozeiten, Abwesenheiten und Monatssummen auf.</li><li>Mit <strong>Per E-Mail einreichen</strong> Text und PDF prüfen und per verbundenem Microsoft-365-Konto senden. Alternativ die bereitgestellte E-Mail-Datei öffnen und im Mailprogramm senden.</li></ol><p>Die Einträge sind in diesem Browser auf diesem Gerät gespeichert. Für Nachweise den Monatsrapport als PDF ablegen.</p><div class="actions">'+closeButton+'</div>');
+  '<ol><li>Mit dem Plus ein Mitarbeiterprofil mit Vor- und Nachnamen erstellen. Anschliessend Monat und Jahr auswählen.</li><li>Beim gewünschten Datum <strong>Erfassen</strong> wählen. Bis zu vier Arbeitsblöcke angeben. Unterbrüche zwischen den Blöcken fliessen automatisch in die Nettozeit ein. Pausen innerhalb eines Blocks als zusätzliche Minuten eintragen.</li><li>Ferien, Krankheit oder andere Abwesenheiten mit Dauer erfassen. Mit <strong>Im Monatstotal anrechnen</strong> festlegen, ob die Stunden zum Monatstotal zählen. Arbeitsfreie Tage entsprechend markieren.</li><li>Für wiederkehrende Tätigkeiten einen gespeicherten Tag öffnen und <strong>Auf Folgetage kopieren</strong> wählen.</li><li>Unter <strong>GAV-Einstellungen</strong> bei Bedarf Pensum, Anstellungszeitraum und den erfassten Zeitraum anpassen. Der GAV-Ausweis zeigt den vorläufigen Jahressaldo, die Wochenwerte und die Zuschläge separat.</li><li>Unter <strong>Ferienkonto bearbeiten</strong> den Anspruch pro Jahr, den Übertrag und die Stunden pro Ferientag hinterlegen. Als Ferien erfasste Abwesenheiten werden automatisch abgezogen.</li><li>Monat kontrollieren. Das PDF führt sämtliche Kalendertage, Arbeitsblöcke, Pausen, Nettozeiten, Abwesenheiten und Monatssummen auf.</li><li>Mit <strong>In Outlook öffnen</strong> die vorbereitete Nachricht aufrufen. Das PDF wird heruntergeladen. In Outlook das PDF anfügen und die Nachricht senden. Unter <strong>Weitere Versandoptionen</strong> ist auch eine E-Mail-Datei mit eingebettetem PDF verfügbar.</li></ol><p>Die Einträge sind in diesem Browser auf diesem Gerät gespeichert. Für Nachweise den Monatsrapport als PDF ablegen.</p><div class="actions">'+closeButton+'</div>');
 render();
 if (!storageAvailable) notify("Der Browser blockiert die lokale Speicherung. Bitte den Link in einem normalen Browserfenster öffnen.",true);
 void finishOAuth();

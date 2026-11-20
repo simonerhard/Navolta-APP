@@ -8,12 +8,12 @@
 <title>Arbeitszeiterfassung | Navolta AG</title>
 <link rel="stylesheet" href="style.css?v=3">
 <script src="gav.js?v=2" defer></script>
-<script src="app.js?v=3" defer></script>
+<script src="app.js?v=4" defer></script>
 </head>
 <body>
 <header class="top"><div class="frame top-inner">
   <img id="logo" src="logo.jpg" alt="Navolta AG" width="700" height="152">
-  <div class="top-actions"><button id="mailSettings" class="secondary" type="button">E-Mail einrichten</button><button id="help" type="button" class="secondary"><span aria-hidden="true">ⓘ</span> Anleitung</button></div>
+  <div class="top-actions"><button id="mailSettings" class="secondary" type="button">Direktversand einrichten</button><button id="help" type="button" class="secondary"><span aria-hidden="true">ⓘ</span> Anleitung</button></div>
 </div></header>
 <main class="frame">
   <section class="hero" aria-labelledby="title">
@@ -24,7 +24,7 @@
     <div class="field employee"><label for="employee">Mitarbeiter/in</label><div class="group"><select id="employee"></select><button class="secondary" id="newEmployee" type="button" aria-label="Mitarbeiterprofil hinzufügen" title="Mitarbeiterprofil hinzufügen">＋</button><button class="secondary" id="renameEmployee" type="button" aria-label="Name bearbeiten" title="Name bearbeiten">✎</button></div></div>
     <div class="field"><label for="month">Monat</label><select id="month"></select></div>
     <div class="field year"><label for="year">Jahr</label><select id="year"></select></div>
-    <div class="toolbar"><button id="pdf" class="secondary" type="button">PDF herunterladen</button><button id="mail" class="primary" type="button">Per E-Mail einreichen</button></div>
+    <div class="toolbar"><button id="pdf" class="secondary" type="button">PDF herunterladen</button><button id="mail" class="primary" type="button">In Outlook öffnen</button></div>
   </section>
   <section class="stats" aria-label="Monatssummen">
     <div class="stat"><span>Arbeitszeit netto</span><strong id="workTotal">0:00</strong></div>
