@@ -7,7 +7,7 @@ const MONTHS = Array.from({length:12}, (_, i) => new Intl.DateTimeFormat("de-CH"
 const WEEKDAYS = ["So","Mo","Di","Mi","Do","Fr","Sa"];
 const ABSENCES = ["Ferien", "Krankheit", "Unfall", "Feiertag", "Arzttermin", "Weiterbildung", "Militär / Zivildienst", "Mutterschaft / anderer Elternteil", "Kompensation", "Unbezahlter Urlaub", "Sonstige Abwesenheit"];
 const now = new Intl.DateTimeFormat("sv-SE", {timeZone:"Europe/Zurich",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
-const blank = () => ({slots:[], breakMinutes:0, absence:"", absenceMinutes:0, credited:false, off:false, note:"", extra:[0,0,0]});
+const blank = () => ({slots:[], breakMinutes:0, absence:"", absenceMinutes:0, credited:false, off:false, note:"", breakStart:"", holiday:false, vorhol:0});
 const pad = n => String(n).padStart(2, "0");
 const duration = n => Math.floor(n / 60) + ":" + pad(n % 60);
 const time = value => {
@@ -61,11 +61,9 @@ function datesFor(person, year, month) {
 function totalsFor(days) {
   const types = new Map();
   let work = 0, absence = 0, credit = 0;
-  const extra = [0,0,0];
   for (const {entry} of days) {
     if (!entry) continue;
     work += net(entry);
-    entry.extra?.forEach((value,i)=>{ extra[i] += value; });
     absence += entry.absenceMinutes;
     if (entry.credited) credit += entry.absenceMinutes;
     if (entry.absence) {
@@ -75,7 +73,7 @@ function totalsFor(days) {
       types.set(entry.absence, subtotal);
     }
   }
-  return {work,absence,credit,total:work+credit,types,extra};
+  return {work,absence,credit,total:work+credit,types};
 }
 function render() {
   const person = employee();
@@ -90,6 +88,8 @@ function render() {
   const recorded = days.filter(day => day.entry).length;
   $("coverage").textContent = person ? recorded + " von " + days.length + " Kalendertagen erfasst" : "Für die Zeiterfassung ein Mitarbeiterprofil anlegen oder auswählen.";
   const sums = totalsFor(days);
+  const gav = gavAccount(person,state.year,state.month,now);
+  renderGav(person,gav);
   for (const [id,value] of Object.entries({workTotal:sums.work,absenceTotal:sums.absence,creditTotal:sums.credit,monthTotal:sums.total})) {
     $(id).textContent = duration(value) + " h";
   }
@@ -98,8 +98,12 @@ function render() {
     const weekend = [0,6].includes(weekday);
     const description = entry?.absence ? escapeHtml(entry.absence) + " · " + duration(entry.absenceMinutes) + " h" + (entry.credited ? " · angerechnet" : "") : (entry?.off ? "Arbeitsfrei" : "");
     const blocks = entry?.slots.length ? entry.slots.map(slot => escapeHtml(slot.join("–"))).join(" · ") : "";
+    const calculated = gav?.days.get(date);
+    const labels = gavLabels(calculated);
+    const existingVorhol = entry?.vorhol ?? entry?.extra?.[2] ?? 0;
+    if (!calculated && existingVorhol) labels.push("Vorholzeit · "+h(existingVorhol));
     const edit = person ? '<button type="button" class="secondary" data-date="'+ date +'" aria-label="'+pad(day)+'. '+MONTHS[state.month-1]+(entry?' bearbeiten':' erfassen')+'">'+(entry?'Ändern':'Erfassen')+'</button>' : "";
-    return '<tr class="'+(weekend?"weekend ":"")+(date===now?"current-day":"")+'"><td><strong>'+pad(day)+'.'+pad(state.month)+'.</strong> <span class="muted">'+WEEKDAYS[weekday]+'</span></td><td>'+blocks+'</td><td>'+(entry?.slots.length ? duration(pauses(entry))+" h" : "")+'</td><td>'+(entry?.slots.length?'<strong>'+duration(net(entry))+' h</strong>':"")+'</td><td>'+(description?'<span class="pill">'+description+'</span>':(!entry?'<span class="muted">'+(weekend?'Wochenende':'Offen')+'</span>':""))+'</td><td class="note">'+escapeHtml(entry?.note || "")+'</td><td>'+edit+'</td></tr>';
+    return '<tr class="'+(weekend?"weekend ":"")+(date===now?"current-day":"")+'"><td><strong>'+pad(day)+'.'+pad(state.month)+'.</strong> <span class="muted">'+WEEKDAYS[weekday]+'</span></td><td>'+blocks+'</td><td>'+(entry?.slots.length ? duration(pauses(entry))+" h" : "")+'</td><td>'+(entry?.slots.length?'<strong>'+duration(net(entry))+' h</strong>':"")+'</td><td>'+(description?'<span class="pill">'+description+'</span>':(!entry?'<span class="muted">'+(weekend?'Wochenende':'Offen')+'</span>':""))+'</td><td class="note">'+escapeHtml(entry?.note || "")+'</td><td class="day-gav">'+labels.map(label=>'<span class="pill">'+escapeHtml(label)+'</span>').join('')+'</td><td>'+edit+'</td></tr>';
   }).join("");
 }
 function updateSelection(changes) {
@@ -130,11 +134,11 @@ function profileEditor(existing) {
     if (save({...state,employees,selected:id})) { $("dialog").close(); render(); }
   };
 }
-const EXTRA_LABELS = ["Überstunden A","Überstunden B","Vorholzeit"];
 function editDay(date) {
   const person = employee();
   const entry = person.days[date] || blank();
-  const prettyDate = date.split("-").reverse().join(".");
+  const prettyDate = swissDate(date);
+  const showGav = Number(date.slice(0,4))>=2026 && Number(date.slice(0,4))<=2029;
   const slotHtml = Array.from({length:4}, (_,i) => {
     const [from,to] = entry.slots[i] || ["",""];
     return '<div class="slot"><label>Von '+(i+1)+'<input type="time" id="from'+i+'" value="'+from+'"></label><label>Bis '+(i+1)+'<input type="time" id="to'+i+'" value="'+(to === "24:00" ? "00:00" : to)+'"></label></div>';
@@ -142,12 +146,16 @@ function editDay(date) {
   openDialog(prettyDate + " · Tageserfassung",
     '<form id="dayForm"><label class="check"><input id="off" type="checkbox" '+(entry.off?"checked":"")+'> Arbeitsfreier Tag</label>'+
     '<div id="dayFields"><fieldset><legend>Arbeitsblöcke</legend><p class="intro">Pausen zwischen Arbeitsblöcken sind bereits abgezogen. Zusätzliche Pausen innerhalb eines Blocks separat erfassen.</p>'+slotHtml+
-    '<div class="field"><label for="breakMinutes">Zusätzliche Pause (Minuten)</label><input type="number" id="breakMinutes" min="0" max="1439" value="'+entry.breakMinutes+'" required></div></fieldset>'+
+    '<div class="field"><label for="breakMinutes">Zusätzliche Pause (Minuten)</label><input type="number" id="breakMinutes" min="0" max="1439" value="'+entry.breakMinutes+'" required></div>'+
+    '<div class="field"><label for="breakStart">Beginn der Zusatzpause</label><input type="time" id="breakStart" value="'+escapeHtml(entry.breakStart || "")+'"><small>Bei Arbeit über eine Zuschlagsgrenze bitte angeben.</small></div></fieldset>'+
     '<fieldset><legend>Abwesenheit</legend><div class="field"><label for="absence">Art</label><select id="absence"><option value="">Keine</option>'+ABSENCES.map(item=>'<option'+(item===entry.absence?' selected':'')+'>'+escapeHtml(item)+'</option>').join("")+'</select></div>'+
     '<div id="absenceFields" hidden><div class="grid"><div class="field"><label for="absHours">Stunden</label><input type="number" id="absHours" min="0" max="24" value="'+Math.floor(entry.absenceMinutes/60)+'"></div><div class="field"><label for="absMins">Minuten</label><input type="number" id="absMins" min="0" max="59" value="'+entry.absenceMinutes%60+'"></div></div><p><label class="check"><input id="credited" type="checkbox" '+(entry.credited?"checked":"")+'> Im Monatstotal anrechnen</label></p></div></fieldset>'+
-    '<details><summary>Überstunden und Vorholzeit</summary><p class="intro">Diese Werte werden separat ausgewiesen. Sie ändern das Monatstotal nicht.</p><div class="grid">'+EXTRA_LABELS.map((label,i)=>'<label>'+label+' (Minuten)<input type="number" id="extra'+i+'" min="0" max="1440" value="'+(entry.extra?.[i] || 0)+'"></label>').join("")+'</div></details></div>'+
+    '<fieldset'+(showGav?'':' hidden')+'><legend>GAV Elektro</legend><p class="intro">Überstunden, Überzeit und Zuschläge werden aus den erfassten Zeiten berechnet.</p>'+
+    '<label class="check"><input id="holiday" type="checkbox" '+(entry.holiday?"checked":"")+'> Arbeit an einem anerkannten Feiertag</label>'+
+    '<div class="field"><label for="vorhol">Vereinbarte Vorholzeit (Minuten)</label><input type="number" id="vorhol" min="0" max="1440" value="'+(entry.vorhol ?? entry.extra?.[2] ?? 0)+'"></div>'+
+    (entry.extra?.slice(0,2).some(Boolean)?'<p class="intro">Bisher manuell erfasst: A '+duration(entry.extra[0])+' h · B '+duration(entry.extra[1])+' h</p>':'')+'</fieldset></div>'+
     '<div class="field"><label for="note">Bemerkung</label><textarea id="note" maxlength="160" rows="2">'+escapeHtml(entry.note)+'</textarea></div><p id="dayError" role="alert" class="alert"></p>'+
-    '<div class="actions">'+(person.days[date]?'<button type="button" class="danger" id="removeDay">Eintrag löschen</button>':"")+cancelButton+'<button class="primary" type="submit">Speichern</button></div></form>');
+    '<div class="actions">'+(person.days[date]?'<button type="button" class="danger" id="removeDay">Eintrag löschen</button>':"")+(entry.slots.length?'<button class="secondary" type="button" id="copyDay">Auf Folgetage kopieren</button>':"")+cancelButton+'<button class="primary" type="submit">Speichern</button></div></form>');
   const toggle = () => {
     $("dayFields").hidden = $("off").checked;
     $("absenceFields").hidden = !$("absence").value;
@@ -168,9 +176,11 @@ function editDay(date) {
   if ($("removeDay")) $("removeDay").onclick = () => {
     if (window.confirm("Tageseintrag für "+prettyDate+" löschen?")) write(null);
   };
+  if ($("copyDay")) $("copyDay").onclick = () => copyDay(date,person);
   $("dayForm").onsubmit = event => {
     event.preventDefault();
     const value = {...blank(),off:$("off").checked,note:$("note").value.trim()};
+    if (entry.extra?.slice(0,2).some(Boolean)) value.extra = entry.extra.slice();
     const error = message => { $("dayError").textContent = message; };
     if (value.off) return write(value);
     for (let i=0; i<4; i++) {
@@ -184,8 +194,9 @@ function editDay(date) {
     value.slots.sort((a,b)=>a[0].localeCompare(b[0]));
     if (value.slots.some(([from],i)=>i>0 && from<value.slots[i-1][1])) return error("Arbeitsblöcke dürfen sich nicht überschneiden.");
     value.breakMinutes = Number($("breakMinutes").value);
-    value.extra = EXTRA_LABELS.map((_,i)=>Number($("extra"+i).value || 0));
-    if (value.extra.some(Boolean) && !value.slots.length) return error("Für Überstunden und Vorholzeit auch die Arbeitsblöcke erfassen.");
+    value.breakStart = value.breakMinutes ? $("breakStart").value : "";
+    value.holiday = showGav && $("holiday").checked;
+    value.vorhol = showGav ? Number($("vorhol").value || 0) : (entry.vorhol ?? entry.extra?.[2] ?? 0);
     if (net(value)<0 || (value.slots.length && net(value)===0)) return error("Die zusätzliche Pause muss kürzer als die erfasste Arbeitszeit sein.");
     value.absence = $("absence").value;
     if (value.absence) {
@@ -193,8 +204,149 @@ function editDay(date) {
       value.credited = $("credited").checked;
       if (!value.absenceMinutes || value.absenceMinutes + net(value) > 1440) return error("Eine positive Abwesenheitsdauer erfassen. Arbeits- und Abwesenheitszeit dürfen zusammen höchstens 24 Stunden betragen.");
     }
+    if (value.breakStart && !value.slots.some(([from,to])=>time(from)<=time(value.breakStart) && time(value.breakStart)+value.breakMinutes<=time(to))) {
+      return error("Die Zusatzpause muss vollständig innerhalb eines Arbeitsblocks liegen.");
+    }
+    const segments = showGav ? workSegments(value,date) : [];
+    if (segments.some(segment=>segment.rate===null)) return error("Bitte den Beginn der Zusatzpause angeben, damit die Zuschläge korrekt berechnet werden.");
+    if (showGav && value.vorhol>segments.reduce((sum,segment)=>sum+(segment.rate===0?segment.minutes:0),0)) {
+      return error("Vorholzeit darf die normale Arbeitszeit an diesem Tag nicht überschreiten.");
+    }
     if (!value.slots.length && !value.absence) return error("Arbeitszeiten, eine Abwesenheit oder einen arbeitsfreien Tag erfassen.");
     write(value);
+  };
+}
+
+const swissDate = date => date.split("-").reverse().join(".");
+const h = value => duration(value)+" h";
+const signedHours = minutes => (minutes<0?"−":minutes>0?"+":"")+h(Math.abs(minutes));
+function weekLabel(monday,week) {
+  return swissDate(monday).slice(0,6)+"–"+swissDate(week.through);
+}
+function gavLabels(row, concise=false) {
+  if (!row) return [];
+  const labels = [25,50,100].flatMap(rate=>row.premiums[rate] ? [(concise?"Zuschlag ":"")+rate+" % · "+h(row.premiums[rate])] : []);
+  if (row.over) labels.push((concise?"Überzeit prüfen":"Überzeit zur Prüfung")+" · "+h(row.over));
+  if (row.vorhol) labels.push("Vorholzeit · "+h(row.vorhol));
+  if (row.uncertain) labels.push("Zuordnung prüfen");
+  return labels;
+}
+function gavReportLines(gav) {
+  const {monthSums:sums} = gav;
+  const lines = [
+    "Monat Soll "+h(gav.monthTarget)+" · IST "+h(gav.monthActual)+" · Differenz "+signedHours(gav.monthDelta),
+    "Jahreskonto bis "+swissDate(gav.cutoff)+": vorläufig "+signedHours(gav.yearDelta)+" · Jahres-/Vertragssoll "+h(gav.annualTarget)+" · Pensum "+gav.percent+" %",
+    "Überzeit zur Prüfung "+h(sums.over)+" · Vorholzeit "+h(sums.vorhol),
+    "Zuschlagsstunden 25 %: "+h(sums.premiums[25])+" · 50 %: "+h(sums.premiums[50])+" · 100 %: "+h(sums.premiums[100])
+  ];
+  if (gav.open || gav.uncertain) lines.push(gav.open+" offene Werktage im Erfassungszeitraum · "+gav.uncertain+" Tage mit unklarer Zuordnung");
+  if (gav.beforeTracking) lines.push("Erfassung ab "+swissDate(gav.tracked)+" · hinterlegter Anfangssaldo berücksichtigt");
+  if (gav.estimated) lines.push("Jahressoll kalenderbasiert. Publiziertes bzw. betriebliches Soll bei Bedarf hinterlegen.");
+  return lines;
+}
+function renderGav(person,gav) {
+  $("gavPanel").hidden = !person;
+  if (!person) return;
+  $("gavSettings").hidden = !gav;
+  if (!gav) {
+    $("gavStatus").textContent="Die automatische Berechnung gilt für die Vertragsperiode 2026–2029.";
+    $("gavContent").replaceChildren();
+    return;
+  }
+  const {monthSums:sums} = gav;
+  $("gavStatus").textContent = "Stand "+swissDate(gav.cutoff)+" · "+gav.percent+" % Pensum"+
+    (gav.open ? " · "+gav.open+" offene Werktage im Konto" : "")+(gav.uncertain ? " · "+gav.uncertain+" Tage mit unklarer Zuordnung" : "");
+  const cards = [
+    ["Monatsdifferenz",signedHours(gav.monthDelta),"Soll "+h(gav.monthTarget)+" · Ist "+h(gav.monthActual)],
+    ["Jahressaldo vorläufig",signedHours(gav.yearDelta),"Jahres-/Vertragssoll "+h(gav.annualTarget)],
+    ["Überzeit zur Prüfung",h(sums.over),"Mo–Sa · 06:00–23:00"],
+    ["Vorholzeit im Monat",h(sums.vorhol),"Vereinbarte Vorholzeit"]
+  ];
+  const rows = Array.from(gav.weeks,([monday,week])=>'<tr><td>'+weekLabel(monday,week)+'</td><td>'+h(week.work)+'</td><td>'+h(week.above)+'</td><td>'+h(week.needsReview)+(week.uncertain?' · Zuordnung prüfen':'')+'</td></tr>').join("");
+  $("gavContent").innerHTML = '<div class="gav-grid">'+cards.map(([label,amount,sub])=>'<div class="stat"><span>'+label+'</span><strong>'+amount+'</strong><small>'+sub+'</small></div>').join("")+'</div>'+
+    '<div class="gav-premiums"><strong>Zuschlagsstunden im Monat</strong>'+[25,50,100].map(rate=>'<span class="pill">'+rate+' % · '+h(sums.premiums[rate])+'</span>').join("")+'</div>'+
+    '<details class="gav-weeks"><summary>Kalenderwochen und Berechnungsgrundlage</summary><div class="table-wrap"><table><thead><tr><th scope="col">Kalenderwoche (Mo–So)</th><th scope="col">Nettozeit</th><th scope="col">Über 50 h</th><th scope="col">Überzeit zur Prüfung</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '<p>Der Jahressaldo vergleicht die anrechenbare Zeit mit dem bis zum Stichtag anteiligen Soll. Das Standard-Soll ist auf Montag bis Freitag verteilt. Für GAV-Überzeit ist die Anordnung oder Autorisierung durch die vorgesetzte Stelle massgebend. Bei Überlappung mit einem Zuschlag nach Art. 25 fällt kein zusätzlicher Überzeitzuschlag an. Wochenwerte enthalten die gespeicherten Tage aus angrenzenden Monaten.</p>'+
+    (gav.beforeTracking?'<p>Erfassungsbeginn '+swissDate(gav.tracked)+' mit hinterlegtem Anfangssaldo.</p>':'')+
+    (gav.estimated?'<p>Das Jahressoll ist kalenderbasiert. Sobald das GAV-Soll für dieses Jahr publiziert ist, kann es in den Einstellungen hinterlegt werden.</p>':'')+
+    '<p><a href="'+GAV_SOURCE+'" target="_blank" rel="noopener noreferrer">Berechnungsgrundlagen der PLK Elektro</a></p></details>';
+}
+function editGavSettings() {
+  const person = employee(), year = state.year;
+  const settings = person.gav?.[year] || {};
+  const first = year+"-01-01", last = year+"-12-31";
+  const dateInput = (id,label,value) => '<div class="field"><label for="'+id+'">'+label+'</label><input type="date" id="'+id+'" min="'+first+'" max="'+last+'" value="'+(value || "")+'"></div>';
+  openDialog("GAV-Einstellungen · "+year,
+    '<p class="intro">'+escapeHtml(person.name)+' · Standard 100 % und Sollverteilung Montag bis Freitag. Unterjährige Anstellungen werden nach Arbeitstagen berechnet.</p>'+
+    '<form id="gavForm"><div class="grid"><div class="field"><label for="pensum">Vertragliches Pensum (%)</label><input id="pensum" type="number" min="0.1" max="100" step="0.1" value="'+(settings.percent || 100)+'" required></div>'+
+    '<div class="field"><label for="annualTarget">Abweichendes Vertragssoll (Stunden)</label><input id="annualTarget" type="number" min="0" max="3650" step="0.01" value="'+(settings.target==null?"":Number((settings.target/60).toFixed(2)))+'" placeholder="Automatisch"></div>'+
+    dateInput("employmentBegin","Anstellung ab",settings.begin || first)+dateInput("employmentEnd","Anstellung bis",settings.end || last)+
+    dateInput("trackingBegin","Erfassung in der App ab",settings.tracked || "")+
+    '<div class="field"><label for="openingBalance">Saldo am Vortag (±Std:Min)</label><input id="openingBalance" maxlength="9" placeholder="0:00" value="'+(settings.opening?(settings.opening<0?"-":"")+duration(Math.abs(settings.opening)):"")+'"></div></div>'+
+    '<p class="intro">Bei einem späteren Erfassungsbeginn den bestätigten Saldo des laufenden Jahres am Vortag einsetzen. Das abweichende Vertragssoll gilt für den ganzen Anstellungszeitraum im gewählten Jahr.</p>'+
+    '<p id="gavError" class="alert" role="alert"></p><div class="actions">'+cancelButton+'<button class="primary" type="submit">Speichern</button></div></form>');
+  $("gavForm").onsubmit = event => {
+    event.preventDefault();
+    const begin=$("employmentBegin").value || first, end=$("employmentEnd").value || last;
+    const tracked=$("trackingBegin").value || begin, raw=$("openingBalance").value.trim();
+    if (begin>end || tracked<begin || tracked>end) {
+      $("gavError").textContent="Der Erfassungsbeginn muss innerhalb der Anstellung liegen.";
+      return;
+    }
+    if (raw && !/^[+-]?\d{1,5}:[0-5]\d$/.test(raw)) {
+      $("gavError").textContent="Den Anfangssaldo im Format Stunden:Minuten eingeben, zum Beispiel -8:30.";
+      return;
+    }
+    const opening=raw ? (raw.startsWith("-")?-1:1)*time(raw.replace(/^[+-]/,"")) : 0;
+    const target=$("annualTarget").value===""?null:Math.round(Number($("annualTarget").value)*60);
+    const config={begin,end,tracked,opening,target,percent:Number($("pensum").value)};
+    const employees=state.employees.map(item=>item.id===person.id ? {...item,gav:{...item.gav,[year]:config}} : item);
+    if (save({...state,employees})) { $("dialog").close(); render(); }
+  };
+}
+function copyDay(date,person) {
+  const source=person.days[date];
+  const first=dateShift(date,1);
+  openDialog("Auf Folgetage kopieren",
+    '<p class="intro">Übernimmt die gespeicherten Arbeitsblöcke, die Pause und die Bemerkung vom '+swissDate(date)+'. Einträge auf Zieltagen bleiben erhalten.</p>'+
+    '<form id="copyForm"><div class="grid"><div class="field"><label for="copyStart">Erster Zieltag</label><input id="copyStart" type="date" required min="'+first+'" max="2099-12-31" value="'+first+'"></div>'+
+    '<div class="field"><label for="copyEnd">Letzter Zieltag</label><input id="copyEnd" type="date" required min="'+first+'" max="2099-12-31" value="'+first+'"></div></div>'+
+    '<p><label class="check"><input id="copyWeekend" type="checkbox"> Samstag und Sonntag einschliessen</label></p>'+
+    '<p id="copyStatus" role="status"></p><div class="actions">'+cancelButton+'<button id="copySubmit" class="primary" type="submit">Kopieren</button></div></form>');
+  function selection() {
+    const start=$("copyStart").value, end=$("copyEnd").value;
+    if (!start || !end || start<first || start>end || end>dateShift(start,30) || end>"2099-12-31") return null;
+    return dateRange(start,end).filter(day=>$("copyWeekend").checked || isWeekday(day));
+  }
+  function preview() {
+    const dates=selection();
+    const skipped=dates?.filter(day=>person.days[day]).length || 0;
+    const count=dates ? dates.length-skipped : 0;
+    $("copySubmit").disabled=!count;
+    $("copyStatus").textContent=dates ? count+" freie Zieltage · "+skipped+" bereits erfasst" : "Bitte einen gültigen Zeitraum von höchstens 31 Kalendertagen wählen.";
+  }
+  $("copyStart").onchange = () => {
+    if ($("copyStart").value>$("copyEnd").value) $("copyEnd").value=$("copyStart").value;
+    preview();
+  };
+  $("copyStart").oninput = preview;
+  $("copyEnd").oninput = $("copyEnd").onchange = $("copyWeekend").onchange = preview;
+  preview();
+  $("copyForm").onsubmit = event => {
+    event.preventDefault();
+    const dates=selection();
+    const latest=state.employees.find(item=>item.id===person.id);
+    if (!dates || !latest) return;
+    const days={...latest.days};
+    const targets=dates.filter(day=>!days[day]);
+    if (!targets.length) return;
+    for (const target of targets) days[target]={...blank(),slots:source.slots.map(slot=>slot.slice()),breakMinutes:source.breakMinutes,breakStart:source.breakStart || "",note:source.note};
+    const employees=state.employees.map(item=>item.id===person.id ? {...item,days} : item);
+    if (save({...state,employees})) {
+      $("dialog").close();
+      render();
+      notify(targets.length===1?"Arbeitszeit auf einen Folgetag kopiert.":"Arbeitszeit auf "+targets.length+" Folgetage kopiert.");
+    }
   };
 }
 
@@ -203,7 +355,7 @@ function reportForSelection() {
   const days = datesFor(person,state.year,state.month);
   const month = MONTHS[state.month-1]+" "+state.year;
   const basename = person.name.normalize("NFKD").replace(/\p{Mark}/gu,"").replace(/[^a-zA-Z0-9]+/g,"_").replace(/^_|_$/g,"") || "Mitarbeiter";
-  return {name:person.name,month,days,sums:totalsFor(days),filename:"Navolta_Arbeitszeit_"+state.year+"-"+pad(state.month)+"_"+basename+".pdf",open:days.filter(day=>!day.entry && ![0,6].includes(day.weekday)).length};
+  return {name:person.name,month,days,sums:totalsFor(days),gav:gavAccount(person,state.year,state.month,now),filename:"Navolta_Arbeitszeit_"+state.year+"-"+pad(state.month)+"_"+basename+".pdf",open:days.filter(day=>!day.entry && ![0,6].includes(day.weekday)).length};
 }
 const splitLines = (value, limit) => String(value).split(/\r?\n/).flatMap(line => {
   const lines = [];
@@ -219,6 +371,7 @@ const splitLines = (value, limit) => String(value).split(/\r?\n/).flatMap(line =
 const winAnsi = {"€":128,"’":146,"“":147,"”":148,"•":149,"–":150,"—":151,"…":133};
 function pdfString(value) {
   return Array.from(String(value).normalize("NFC"), char => {
+    if (char === "−") return "-";
     const code = winAnsi[char] ?? char.charCodeAt(0);
     if (code >= 32 && code <= 126) return /[()\\]/.test(char) ? "\\"+char : char;
     return code >= 160 && code <= 255 || winAnsi[char] ? "\\"+code.toString(8).padStart(3,"0") : "?";
@@ -269,14 +422,24 @@ async function makePdf(report) {
   y += 47;
   text("Angaben in Stunden und Minuten. Pausen zwischen Arbeitsblöcken sind bereits abgezogen.",36,y+11,8,false,muted);
   y += 20;
+  if (report.gav) {
+    const lines = gavReportLines(report.gav);
+    rect(35,y,525,34+lines.length*12,grey);
+    text("GAV Elektro 2026–2029 · separater Ausweis",43,y+16,10,true);
+    lines.forEach((line,i)=>text(line,43,y+31+i*12,8));
+    y += 43+lines.length*12;
+  }
   tableHead();
   for (const {date,weekday,entry} of report.days) {
     const weekend = [0,6].includes(weekday);
     const pairs = entry?.slots.map(slot=>slot.join("–")) || [];
     const blocks = [pairs.slice(0,2).join("   "),pairs.slice(2).join("   ")].filter(Boolean);
     if (entry?.slots.length && pauses(entry)) blocks.push("Pausen gesamt "+duration(pauses(entry))+" h"+(entry.breakMinutes ? " (davon "+duration(entry.breakMinutes)+" h zusätzlich)" : ""));
-    const extra = entry?.extra?.flatMap((amount,i)=>amount ? [["ÜS A","ÜS B","Vorhol"][i]+" "+duration(amount)] : []);
-    if (extra?.length) blocks.push(extra.join(" · "));
+    const calculated = report.gav?.days.get(date);
+    blocks.push(...gavLabels(calculated, true));
+    const existingVorhol = entry?.vorhol ?? entry?.extra?.[2] ?? 0;
+    if (!calculated && existingVorhol) blocks.push("Vorholzeit · "+h(existingVorhol));
+    if (entry?.extra?.slice(0,2).some(Boolean)) blocks.push("Früher manuell: A "+duration(entry.extra[0])+" h / B "+duration(entry.extra[1])+" h");
     const absence = entry?.absence ? splitLines(entry.absence,22) : [entry?.off ? "Arbeitsfrei" : (!entry ? (weekend ? "Wochenende" : "Offen") : "")];
     if (entry?.absence) absence.push(duration(entry.absenceMinutes)+" h "+(entry.credited?"angerechnet":"ohne Anrechnung"));
     const notes = splitLines(entry?.note || "",25);
@@ -292,12 +455,17 @@ async function makePdf(report) {
     notes.forEach((line,i)=>text(line,xs[5],y+12+10*i,8));
     y += height;
   }
-  const types = Array.from(report.sums.types, ([label,values]) => label+" · "+duration(values[0])+" h erfasst · "+duration(values[1])+" h angerechnet");
-  if (report.sums.extra.some(Boolean)) {
-    if (y+29 > 783) startPage();
-    y += 18;
-    text(EXTRA_LABELS.map((label,i)=>label+" "+duration(report.sums.extra[i])+" h").join("  ·  "),36,y,9,true);
+  if (report.gav) {
+    const weeks = [...report.gav.weeks];
+    if (y+49+weeks.length*13 > 783) startPage();
+    y += 19;
+    text("Kalenderwochen (Mo–So)",36,y,11,true);
+    for (const [monday,week] of weeks) {
+      y += 13;
+      text(weekLabel(monday,week)+" · netto "+duration(week.work)+" h · über 50 h "+duration(week.above)+" h · Überzeit zur Prüfung "+duration(week.needsReview)+" h",36,y,8);
+    }
   }
+  const types = Array.from(report.sums.types, ([label,values]) => label+" · "+duration(values[0])+" h erfasst · "+duration(values[1])+" h angerechnet");
   if (types.length) {
     if (y+26+types.length*13 > 783) startPage();
     y += 19;
@@ -515,8 +683,9 @@ $("pdf").onclick=async event=>{
 };
 $("mail").onclick=showMail;
 $("mailSettings").onclick=()=>mailSettings();
+$("gavSettings").onclick=editGavSettings;
 $("help").onclick=()=>openDialog("Anleitung",
-  '<ol><li>Mit dem Plus ein Mitarbeiterprofil mit Vor- und Nachnamen erstellen. Anschliessend Monat und Jahr auswählen.</li><li>Beim gewünschten Datum <strong>Erfassen</strong> wählen. Bis zu vier Arbeitsblöcke angeben. Unterbrüche zwischen den Blöcken fliessen automatisch in die Nettozeit ein. Pausen innerhalb eines Blocks als zusätzliche Minuten eintragen.</li><li>Ferien, Krankheit oder andere Abwesenheiten mit Dauer erfassen. Mit <strong>Im Monatstotal anrechnen</strong> festlegen, ob die Stunden zum Monatstotal zählen. Arbeitsfreie Tage entsprechend markieren.</li><li>Monat kontrollieren. Das PDF führt sämtliche Kalendertage, Arbeitsblöcke, Pausen, Nettozeiten, Abwesenheiten und Monatssummen auf.</li><li>Mit <strong>Per E-Mail einreichen</strong> Text und PDF prüfen und per verbundenem Microsoft-365-Konto senden. Alternativ die bereitgestellte E-Mail-Datei öffnen und im Mailprogramm senden.</li></ol><p>Die Einträge sind in diesem Browser auf diesem Gerät gespeichert. Für Nachweise den Monatsrapport als PDF ablegen.</p><div class="actions">'+closeButton+'</div>');
+  '<ol><li>Mit dem Plus ein Mitarbeiterprofil mit Vor- und Nachnamen erstellen. Anschliessend Monat und Jahr auswählen.</li><li>Beim gewünschten Datum <strong>Erfassen</strong> wählen. Bis zu vier Arbeitsblöcke angeben. Unterbrüche zwischen den Blöcken fliessen automatisch in die Nettozeit ein. Pausen innerhalb eines Blocks als zusätzliche Minuten eintragen.</li><li>Ferien, Krankheit oder andere Abwesenheiten mit Dauer erfassen. Mit <strong>Im Monatstotal anrechnen</strong> festlegen, ob die Stunden zum Monatstotal zählen. Arbeitsfreie Tage entsprechend markieren.</li><li>Für wiederkehrende Tätigkeiten einen gespeicherten Tag öffnen und <strong>Auf Folgetage kopieren</strong> wählen.</li><li>Unter <strong>GAV-Einstellungen</strong> bei Bedarf Pensum, Anstellungszeitraum und den erfassten Zeitraum anpassen. Der GAV-Ausweis zeigt den vorläufigen Jahressaldo, die Wochenwerte und die Zuschläge separat.</li><li>Monat kontrollieren. Das PDF führt sämtliche Kalendertage, Arbeitsblöcke, Pausen, Nettozeiten, Abwesenheiten und Monatssummen auf.</li><li>Mit <strong>Per E-Mail einreichen</strong> Text und PDF prüfen und per verbundenem Microsoft-365-Konto senden. Alternativ die bereitgestellte E-Mail-Datei öffnen und im Mailprogramm senden.</li></ol><p>Die Einträge sind in diesem Browser auf diesem Gerät gespeichert. Für Nachweise den Monatsrapport als PDF ablegen.</p><div class="actions">'+closeButton+'</div>');
 render();
 if (!storageAvailable) notify("Der Browser blockiert die lokale Speicherung. Bitte den Link in einem normalen Browserfenster öffnen.",true);
 void finishOAuth();

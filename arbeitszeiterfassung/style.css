@@ -89,3 +89,21 @@ td:last-child{grid-column:3;grid-row:1/5;align-self:start}
 td:empty{display:none}
 footer{font-size:.8rem}
 }
+.gav-panel{margin-bottom:17px;background:#fff;border:1px solid var(--border);border-radius:13px}
+.gav-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;padding:0 16px}
+.gav-grid .stat{background:#f2f7fa;min-height:88px}
+.gav-grid small,.field small{color:var(--muted);font-size:.8rem}
+.gav-premiums{display:flex;gap:7px;align-items:center;flex-wrap:wrap;padding:12px 16px;font-size:.875rem}
+.gav-weeks{padding:0 16px 14px;font-size:.875rem}
+.gav-weeks summary{cursor:pointer;color:#0f4d71;font-weight:690}
+.gav-weeks table{margin:9px 0}
+.gav-weeks p{max-width:85ch;line-height:1.45}
+.day-gav .pill{display:table;margin:2px 0;font-size:.78rem}
+@media(max-width:720px){.gav-grid{grid-template-columns:repeat(2,minmax(0,1fr));padding-inline:9px}}
+@media(max-width:650px){
+  .day-gav{grid-column:2}
+  .gav-weeks table{display:table}.gav-weeks thead{position:static;clip-path:none;width:auto;height:auto}
+  .gav-weeks tbody{display:table-row-group}.gav-weeks tr{display:table-row}
+  .gav-weeks td,.gav-weeks th{padding:4px}.gav-weeks .table-wrap{overflow:auto}
+  .ledger tbody td:first-child,.ledger tbody td:last-child{grid-row:1/7}
+}

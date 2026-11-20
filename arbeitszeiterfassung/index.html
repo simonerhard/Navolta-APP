@@ -6,8 +6,9 @@
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#082944">
 <title>Arbeitszeiterfassung | Navolta AG</title>
-<link rel="stylesheet" href="style.css">
-<script src="app.js" defer></script>
+<link rel="stylesheet" href="style.css?v=2">
+<script src="gav.js?v=2" defer></script>
+<script src="app.js?v=2" defer></script>
 </head>
 <body>
 <header class="top"><div class="frame top-inner">
@@ -31,9 +32,13 @@
     <div class="stat"><span>Davon angerechnet</span><strong id="creditTotal">0:00</strong></div>
     <div class="stat emphasis"><span>Monatstotal angerechnet</span><strong id="monthTotal">0:00</strong></div>
   </section>
+  <section id="gavPanel" class="gav-panel" aria-labelledby="gavTitle" hidden>
+    <div class="ledger-head"><div><h2 id="gavTitle">Überstunden nach GAV Elektro</h2><p id="gavStatus"></p></div><button id="gavSettings" class="secondary" type="button">GAV-Einstellungen</button></div>
+    <div id="gavContent"></div>
+  </section>
   <section class="ledger" aria-labelledby="period">
     <div class="ledger-head"><div><h2 id="period"></h2><p id="coverage"></p></div><button id="today" class="secondary" type="button">Aktueller Monat</button></div>
-    <div class="table-wrap"><table><thead><tr><th scope="col">Datum</th><th scope="col">Arbeitsblöcke</th><th scope="col">Pausen</th><th scope="col">Netto</th><th scope="col">Abwesenheit / Status</th><th scope="col">Bemerkung</th><th scope="col"><span class="sr">Bearbeiten</span></th></tr></thead><tbody id="days"></tbody></table></div>
+    <div class="table-wrap"><table><thead><tr><th scope="col">Datum</th><th scope="col">Arbeitsblöcke</th><th scope="col">Pausen</th><th scope="col">Netto</th><th scope="col">Abwesenheit / Status</th><th scope="col">Bemerkung</th><th scope="col">GAV</th><th scope="col"><span class="sr">Bearbeiten</span></th></tr></thead><tbody id="days"></tbody></table></div>
   </section>
   <footer><span>Navolta AG · Monatsrapport</span><span>Einträge bleiben in diesem Browser.</span></footer>
 </main>
