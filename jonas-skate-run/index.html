@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#141722">
+<link rel="preload" as="image" href="jonas.webp">
+<title>Jonas Skate Run · Basel</title>
+<style>
+:root{color-scheme:dark;--bg:#141722;--panel:#1d2130;--line:#353a49;--ink:#fff9ea;--muted:#b8bccb;--gold:#ffcb67;--mint:#9cf1d5;font-family:system-ui,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 55% -20%,#2a3043,transparent 58%),var(--bg);color:var(--ink);min-height:100svh}button{font:inherit;cursor:pointer;border:0}button:focus-visible{outline:3px solid white;outline-offset:4px}[hidden]{display:none!important}.shell{width:min(1120px,calc(100% - 64px));margin:auto}.brand{display:flex;align-items:center;justify-content:space-between;height:83px;border-bottom:1px solid var(--line)}.brand-name{display:flex;align-items:center;gap:10px;font-weight:850;letter-spacing:.08em;font-size:14px}.mark{width:29px;height:29px;background:var(--gold);color:var(--bg);display:grid;place-items:center;border-radius:8px;font-size:18px}.city{font-size:12px;font-weight:800;letter-spacing:.17em;color:var(--muted)}main{display:grid;grid-template-columns:minmax(0,325px) minmax(0,1fr);gap:44px;align-items:start;padding:32px 0 36px}.intro{padding-top:34px}.mode{display:inline-flex;align-items:center;gap:8px;color:var(--gold);font-weight:800;font-size:12px;letter-spacing:.14em;text-transform:uppercase}.mode::before{content:'';width:18px;height:2px;background:var(--gold)}h1,h2,p{margin:0}h1{font-family:Impact,'Arial Black',system-ui,sans-serif;font-weight:950;font-size:clamp(63px,7vw,106px);line-height:.87;letter-spacing:-.055em;text-transform:uppercase;margin:15px 0 20px}h1 em{display:block;color:var(--gold);font-style:normal}p{line-height:1.55}.intro>p{color:var(--muted);max-width:26ch}.guide{border-top:1px solid var(--line);margin-top:33px;padding-top:21px}.guide h2{font-size:13px;text-transform:uppercase;letter-spacing:.13em;margin-bottom:15px}.guide-list{display:grid;gap:10px;margin:0;padding:0;list-style:none}.guide li{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:14px}.keys{display:inline-flex;gap:4px;min-width:65px}kbd{width:28px;height:27px;border-radius:5px;border:1px solid #53586a;display:grid;place-items:center;color:var(--ink);font:700 16px system-ui;background:#222637}.coin-info{margin-top:23px;display:flex;align-items:center;gap:9px;color:var(--gold);font-size:13px;font-weight:750}.coin-icon{display:inline-block;width:15px;height:15px;border:2px solid #ffe1a0;border-radius:50%;background:#bd741b;box-shadow:inset 0 0 0 2px #f6b93f}
+.machine{border:1px solid #414656;border-radius:21px;overflow:hidden;background:var(--panel);box-shadow:0 16px 60px #090b12a0;min-width:0}.hud{display:grid;grid-template-columns:1.1fr 1fr 1fr .86fr 1fr;background:#202434}.metric{padding:13px 13px 11px;border-right:1px solid var(--line);min-width:0}.metric:last-child{border:0}.caption{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;font-weight:800;white-space:nowrap}.metric strong{font-size:clamp(17px,2.2vw,23px);font-variant-numeric:tabular-nums;line-height:1.4;white-space:nowrap}.metric:nth-child(2) strong,.metric:nth-child(4) strong{color:var(--gold)}.metric:last-child strong{color:var(--mint)}.meter{height:4px;background:#3a3e4c}.meter i{display:block;width:100%;height:100%;background:var(--gold);transform-origin:left}
+.stage{position:relative;overflow:hidden;height:clamp(440px,61vh,650px);background:#333344;touch-action:none;user-select:none;overscroll-behavior:contain}.stage canvas{display:block;width:100%;height:100%}.overlay{position:absolute;inset:0;display:flex;align-items:flex-end;background:linear-gradient(90deg,#171c2e 4%,#171c2efa 28%,#171c2e9e 52%,#171c2e05 83%),linear-gradient(0deg,#151925 0%,transparent 57%),url(jonas.webp) right 48% / auto 112% no-repeat,#171c2e}.overlay.finished{background:#141828b8;align-items:center;justify-content:center}.card{position:relative;padding:32px 33px 38px;max-width:330px}.finished .card{text-align:center;border:1px solid #ffffff35;background:#181d2e;padding:25px 26px;border-radius:17px;width: min(90%,350px)}.tag{display:block;color:var(--gold);text-transform:uppercase;letter-spacing:.17em;font-size:12px;font-weight:850;margin-bottom:9px}.card h2{font-family:Impact,'Arial Black',system-ui,sans-serif;font-size:clamp(32px,4.2vw,58px);line-height:.94;letter-spacing:-.025em;text-transform:uppercase}.card p{color:#e1e1e9;margin:12px 0 18px;max-width:23ch;font-size:15px}.finished .card h2{font-size:clamp(29px,7.8vw,44px)}.finished .card p{margin-inline:auto}.play{background:var(--gold);color:#1c1820;font-weight:850;font-size:16px;padding:13px 23px;border-radius:9px;box-shadow:0 4px 0 #98632c}.play:hover{background:#ffda90}.play:active{transform:translateY(2px);box-shadow:0 2px 0 #98632c}.footer{min-height:52px;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 15px;font-size:12px;color:var(--muted);font-weight:650}.footer span:last-child{color:var(--mint)}.touch-guide{display:none}#feedback{position:absolute;top:13%;left:50%;transform:translateX(-50%);color:#fff1b9;font-size:26px;font-weight:950;text-shadow:0 2px 4px #332111;pointer-events:none}
+@media(max-width:800px){.shell{width:calc(100% - 30px)}main{grid-template-columns:minmax(0,1fr);gap:16px;padding:16px 0 23px}.brand{height:52px}.intro{padding:0}.intro>.mode,.intro>p,.guide,.coin-info{display:none}h1{font-size:clamp(34px,8vw,59px);margin:0;line-height:1}h1 em{display:inline}.stage{height:clamp(325px,calc(100svh - 215px),720px)}.metric{padding:8px 7px}.caption{font-size:9px;letter-spacing:.025em}.metric strong{font-size:17px}.card{padding:22px 19px 29px}.overlay{background-size:auto,auto,auto 100%;background-position:center,center,63% center}.card h2{font-size:40px}.overlay:not(.finished) h2{max-width:5em}.card p{font-size:14px;max-width:20ch}.footer{min-height:42px;padding:8px 9px}.touch-guide{display:inline}.desktop-guide{display:none}}
+@media(max-width:365px){.city{display:none}.metric{padding-inline:4px}.caption{font-size:8px}.footer{font-size:11px}.card h2{font-size:34px}}@media(pointer:coarse){.touch-guide{display:inline}.desktop-guide{display:none}}
+
+.level-label{position:absolute;top:11px;left:11px;z-index:1;padding:6px 10px;border-radius:6px;background:#1a1f30e8;color:var(--ink);font-size:12px;font-weight:800;pointer-events:none}
+.interlude{position:absolute;inset:0;z-index:2;display:grid;place-items:center;padding:16px;background:#141828ad;text-align:center}
+.interlude-card{display:grid;grid-template-columns:clamp(100px,25%,180px) minmax(0,1fr);align-items:stretch;width:min(100%,560px);border:1px solid #ffcb6766;border-radius:17px;overflow:hidden;background:#181d2e;box-shadow:0 14px 48px #0a0c1970;text-align:left}
+.interlude-photo{position:relative;background:#343044}
+.interlude-photo img{display:block;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:52% 35%}
+.interlude-copy{padding:clamp(15px,4vw,30px)}
+@media(max-width:380px){.interlude-card{grid-template-columns:29% minmax(0,1fr)}.interlude-copy{padding:13px}.interlude-card h2{font-size:22px}.interlude-card blockquote{font-size:17px}}
+.interlude-card h2{font-size:clamp(25px,5vw,38px);line-height:1.05;letter-spacing:-.03em}
+.interlude-card blockquote{font-weight:750;color:var(--gold);font-size:clamp(19px,4vw,26px);line-height:1.25;margin:17px 0 7px}
+.interlude-card cite{color:var(--ink);font-style:normal;font-size:14px;font-weight:700}
+.interlude-card p{margin-top:17px;color:var(--mint);font-size:14px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="brand"><div class="brand-name"><span class="mark" aria-hidden="true">⚡</span> JONAS SKATE RUN</div><div class="city">BASEL</div></header>
+<main>
+<section class="intro" aria-label="Spielanleitung">
+<div class="mode">60 Sekunden pro Level</div>
+<h1>Jonas <em>Skate Run</em></h1>
+<p>Skate mit Jonas durch Basel. Sammle Münzen, weiche Hindernissen aus und erreiche das nächste Level.</p>
+<div class="guide"><h2>Steuerung</h2><ul class="guide-list">
+<li><span class="keys" aria-hidden="true"><kbd>←</kbd><kbd>→</kbd></span> Spur wechseln</li>
+<li><span class="keys" aria-hidden="true"><kbd>↑</kbd></span> Über Hürden springen</li>
+<li><span class="keys" aria-hidden="true"><kbd>↓</kbd></span> Unter Balken ducken</li>
+</ul></div><div class="coin-info"><i class="coin-icon" aria-hidden="true"></i> +100 Punkte pro Münze</div>
+</section>
+<section class="machine" aria-label="Skateboard-Spiel">
+<div class="hud" aria-label="Spielstand">
+<div class="metric"><span class="caption">Score</span><strong id="score">0</strong></div>
+<div class="metric"><span class="caption">Bestscore</span><strong id="best">0</strong></div>
+<div class="metric"><span class="caption">Münzen</span><strong id="coins">0</strong></div>
+<div class="metric"><span class="caption">Zeit</span><strong id="time">60 s</strong></div>
+<div class="metric"><span class="caption">Tempo</span><strong id="speed">18</strong></div>
+</div>
+<div class="meter" aria-hidden="true"><i id="meter"></i></div>
+<div class="stage" id="stage">
+<canvas id="track" aria-label="Dreispurige Strecke am Rheinufer"></canvas>
+<div id="level-label" class="level-label" hidden></div>
+<div id="feedback" hidden>+100</div>
+<div id="interlude" class="interlude" role="status" aria-live="polite" hidden><div class="interlude-card">
+<div class="interlude-photo"><img src="jonas.webp" width="475" height="511" alt="Jonas mit seinem Skateboard"></div>
+<div class="interlude-copy"><h2 id="interlude-title"></h2>
+<blockquote id="interlude-quote"></blockquote><cite>Jonas</cite>
+<p id="interlude-next"></p>
+</div></div></div>
+<div id="overlay" class="overlay"><div class="card">
+<span class="tag" id="tag">60 Sekunden am Rhein</span>
+<h2 id="message">Bereit zum skaten?</h2>
+<p id="detail">Münzen sammeln, Hürden springen und unter Balken ducken.</p>
+<button id="play" class="play" type="button">Spiel starten</button>
+</div></div>
+</div>
+<div class="footer"><span class="desktop-guide">← → Spur &nbsp;·&nbsp; ↑ Sprung &nbsp;·&nbsp; ↓ Ducken</span><span class="touch-guide">Wischen · ← → Spur · ↑ Sprung · ↓ Ducken</span><span>Tempo in km/h</span></div>
+</section>
+</main></div>
+<script src="game.js"></script>
+</body>
+</html>
