@@ -9,6 +9,7 @@ const play = byId('play');
 const hud = ['score','best','coins','time','speed'].map(byId);
 const meter = byId('meter');
 const feedback = byId('feedback');
+const trickFeedback = byId('trick-feedback');
 const levelLabel = byId('level-label');
 const interlude = byId('interlude');
 const backgrounds = ['Rheinufer','Altstadt','Skatepark am Hafen'];
@@ -23,6 +24,8 @@ const quotes = [
 const interludeDuration = 4;
 const duration = 60;
 const sight = 700;
+const jumpDuration = .78;
+const wavePattern = ['barrier','gate','lane','gate','barrier','lane'];
 const startSpeed = 130;
 const acceleration = 2.45;
 const bestKey = 'jonas-skate-run-best-v1';
@@ -33,6 +36,7 @@ let width, height, pixelRatio, scenery;
 let state = 'ready', elapsed = 0, distance = 0, coinCount = 0, score = 0;
 let lane = 0, riderLane = 0, jump = 0, duck = 0, coinFlash = 0;
 let nextWave = 400, wave = 0, objects = [];
+let spinStart = 0, trickFlash = 0;
 let lastFrame = 0, swipe;
 let level = 1, previousLevelsDistance = 0, interludeTime = 0;
 
@@ -62,15 +66,15 @@ function start() {
 }
 
 function beginLevel() {
-  elapsed = distance = lane = riderLane = jump = duck = coinFlash = 0;
-  nextWave = level === 1 ? 400 : speedAt(0)*2.6;
+  elapsed = distance = lane = riderLane = jump = duck = coinFlash = spinStart = trickFlash = 0;
+  nextWave = speedAt(0)*2.7;
   wave = 0;
   objects = [];
   swipe = undefined;
   state = 'running';
   overlay.hidden = true;
   interlude.hidden = true;
-  feedback.hidden = true;
+  feedback.hidden = trickFeedback.hidden = true;
   const location = backgrounds[(level-1) % backgrounds.length];
   levelLabel.textContent = 'Level ' + level + ' · ' + location;
   levelLabel.hidden = false;
@@ -93,7 +97,7 @@ function completeLevel() {
   interludeTime = interludeDuration;
   previousLevelsDistance += distance;
   saveBest();
-  feedback.hidden = true;
+  feedback.hidden = trickFeedback.hidden = true;
   byId('interlude-title').textContent = 'Level ' + level + ' geschafft!';
   byId('interlude-quote').textContent = '«' + quotes[(level-1) % quotes.length] + '»';
   const nextLocation = backgrounds[level % backgrounds.length];
@@ -110,7 +114,7 @@ function advanceInterlude(dt) {
 
 function finish(obstacle) {
   state = 'finished';
-  feedback.hidden = true;
+  feedback.hidden = trickFeedback.hidden = true;
   const record = saveBest();
   overlay.classList.add('finished');
   byId('tag').textContent = (record ? 'Neuer Bestscore' : 'Ergebnis') + ' · Level ' + level;
@@ -126,20 +130,17 @@ function pickLane() { return Math.floor(Math.random()*3)-1; }
 
 function fillTrack() {
   while (nextWave < distance + sight + 100) {
-    const target = wave === 0 ? 0 : pickLane();
-    const kind = ['barrier','gate','crate'][(wave+level-1)%3];
-    if (wave === 0) {
-      for (const offset of [230,175,120]) objects.push({kind:'coin',lane:0,at:nextWave-offset});
-    } else {
-      const openLane = target === 0 ? (Math.random() < .5 ? -1 : 1) : 0;
-      for (const offset of [110,62,14]) objects.push({kind:'coin',lane:openLane,at:nextWave-offset});
-      if ((level > 1 || elapsed > 22) && wave % 3 === 1) {
-        const unusedLane = -target-openLane;
-        objects.push({kind:'crate',lane:unusedLane,at:nextWave});
-      }
+    const kind = wavePattern[wave % wavePattern.length];
+    const arrival = elapsed+(nextWave-distance)/speedAt(elapsed);
+    const speed = speedAt(arrival);
+    const target = kind === 'lane' ? pickLane() : null;
+    const coinLane = wave === 0 ? 0 : target === 0 ? (Math.random() < .5 ? -1 : 1) : pickLane();
+    const openLane = coinLane === target ? 0 : coinLane;
+    for (const seconds of [.86,.59,.32]) {
+      objects.push({kind:'coin',lane:openLane,at:nextWave-speed*seconds});
     }
-    objects.push({kind,lane:target,at:nextWave});
-    nextWave += (level === 1 ? 200 + elapsed*1.3 : speedAt(elapsed)*.94) + Math.random()*32;
+    objects.push({kind:target === null ? kind : 'crate',lane:target,at:nextWave});
+    nextWave += speed*(Math.max(1.12,1.52-(arrival+(level-1)*duration)*.004)+Math.random()*.17);
     wave++;
   }
 }
@@ -151,11 +152,14 @@ function step(dt) {
   elapsed += active;
   riderLane += (lane-riderLane) * (1-Math.exp(-25*active));
   jump = Math.max(0,jump-active);
+  if (jump === 0) spinStart = 0;
+  trickFlash = Math.max(0,trickFlash-active);
   duck = Math.max(0,duck-active);
   coinFlash = Math.max(0,coinFlash-active);
   fillTrack();
   for (const object of objects) {
-    if (object.at > distance || object.at <= previousDistance || Math.abs(object.lane-riderLane) > .44) continue;
+    if (object.at > distance || object.at <= previousDistance) continue;
+    if (object.lane !== null && Math.abs(object.lane-riderLane) > .44) continue;
     if (object.kind === 'coin') {
       coinCount++;
       coinFlash = .55;
@@ -173,6 +177,7 @@ function step(dt) {
   objects = objects.filter(object => object.at > distance);
   score = scoreAt(distance);
   feedback.hidden = coinFlash === 0;
+  trickFeedback.hidden = trickFlash === 0;
   updateHud();
   if (elapsed >= duration) completeLevel();
 }
@@ -181,8 +186,20 @@ function move(direction) {
   if (state !== 'running') return;
   if (direction === 'left') lane = Math.max(-1,lane-1);
   if (direction === 'right') lane = Math.min(1,lane+1);
-  if (direction === 'up' && jump === 0) { jump = .78; duck = 0; }
-  if (direction === 'down') { duck = .78; jump = 0; }
+  if (direction === 'up') {
+    if (jump === 0) {
+      jump = jumpDuration;
+      duck = 0;
+    } else if (jump > .17 && spinStart === 0) {
+      spinStart = jump;
+      trickFlash = .78;
+      trickFeedback.hidden = false;
+    }
+  }
+  if (direction === 'down') {
+    duck = .78;
+    jump = spinStart = 0;
+  }
 }
 
 const keys = {ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down'};
@@ -421,11 +438,14 @@ function pavement() {
 }
 
 function drawObject(object) {
-  const p = projection(object.at-distance,object.lane);
+  const z = object.at-distance;
+  const p = projection(z,object.lane ?? 0);
+  const halfTrack = projection(z,1.46).x-p.x;
   const s = p.scale;
   context.save();
   context.translate(p.x,p.y);
-  context.scale(s,s);
+  const shapeHalfWidth = object.kind === 'gate' ? .88 : .76;
+  context.scale(object.lane === null ? halfTrack/shapeHalfWidth : s,s);
   if (object.kind === 'coin') {
     const spin = .23 + Math.abs(Math.cos(elapsed*8+object.at*.012))*.20;
     oval(context,'#2b263669',0,0,.39,.085);
@@ -467,7 +487,7 @@ function drawObject(object) {
 function drawRider() {
   const p = projection(0,riderLane);
   const s = p.scale;
-  const lift = jump ? Math.sin(Math.PI * jump/.78)*s*1.21 : 0;
+  const lift = jump ? Math.sin(Math.PI * jump/jumpDuration)*s*1.21 : 0;
   const lean = (lane-riderLane)*.27;
   const crouching = duck > 0;
   oval(context,'#1d203080',p.x,p.y+2,s*.66,s*.175);
@@ -475,6 +495,11 @@ function drawRider() {
   context.translate(p.x,p.y-lift);
   context.scale(s,s);
   context.rotate(lean);
+  if (spinStart > 0) {
+    context.translate(0,-.78);
+    context.rotate(2*Math.PI*(1-jump/spinStart));
+    context.translate(0,.78);
+  }
   for (const x of [-.45,.39]) oval(context,'#191c29',x,.012,.12,.145);
   trace(context,'#f6b357',.105,[-.67,-.17],[-.54,-.105],[.46,-.105],[.63,-.19]);
   trace(context,'#35504b',.21,[-.17,crouching?-.59:-.83],[-.49,-.46],[-.42,-.23]);
