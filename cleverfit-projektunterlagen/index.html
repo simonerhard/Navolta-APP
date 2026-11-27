@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Cleverfit Basel | Projektunterlagen</title>
+<style>
+:root{color-scheme:light;--navy:#102b3e;--ink:#132e40;--muted:#4c6373;--line:#d6e2e9;--sea:#086a76;--cyan:#77e4df;--paper:#fff;--ground:#f3f7f9;font:16px/1.5 Inter,system-ui,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--ground);color:var(--ink)}[hidden]{display:none!important}a{color:var(--sea);text-underline-offset:.22em}button,input,select{font:inherit}button,a,input,select{touch-action:manipulation}:focus-visible{outline:3px solid #148b96;outline-offset:4px}
+.wrap{width:min(1160px,calc(100% - 48px));margin-inline:auto}.hero{background:var(--navy);color:white;border-bottom:5px solid var(--cyan)}.top{display:flex;gap:1rem;align-items:center;justify-content:space-between;padding:19px 0;border-bottom:1px solid #ffffff30}.brand{font-size:1.1rem;letter-spacing:.15em;font-weight:850}.top span:last-child{color:#b6d3df;font-size:.9rem}.intro{padding:32px 0 40px}h1,h2,p{margin:0}h1{font-size:clamp(2.35rem,7vw,4rem);line-height:1.02;letter-spacing:-.055em;margin-bottom:12px}.intro p{color:#c9dfe9}.intro .project{color:var(--cyan);font-weight:720;margin-bottom:10px}.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}.button,button{display:inline-block;border:1px solid var(--line);border-radius:9px;background:white;color:var(--ink);text-decoration:none;font-weight:680;padding:9px 14px;cursor:pointer}.primary{background:var(--cyan);border-color:var(--cyan);color:#12343c}.hero .secondary{background:transparent;color:#f3fcff;border-color:#81a2b2}.importStatus{margin:14px 0 0;min-height:1.5em}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+main{padding-block:25px 48px}.panel{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:18px}.panel h2{font-size:1.27rem;margin-bottom:5px}.muted{color:var(--muted)}.starter{max-width:730px}.starter p+p{margin-top:8px}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:15px}.card{display:flex;align-items:flex-start;gap:9px;padding:12px;border:1px solid var(--line);border-radius:9px;min-width:0;color:var(--ink);text-decoration:none;font-weight:670}.card:hover,.file-link:hover{color:var(--sea);text-decoration:underline}.badge{display:inline-block;border-radius:5px;background:#e8f3f4;color:#15545b;padding:2px 6px;font-size:.78rem;line-height:1.55;font-weight:800;white-space:nowrap}
+.controls{display:grid;grid-template-columns:2fr 1.1fr 1fr;align-items:end;gap:12px;margin:16px 0 8px}.field{display:grid;gap:4px;font-size:.9rem;font-weight:680}.field input,.field select{width:100%;min-width:0;border:1px solid #aabdc9;background:white;color:var(--ink);border-radius:8px;padding:8px 10px}.toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:12px 0}.toolbar p{font-size:.9rem;color:var(--muted)}.group{border-top:1px solid var(--line);padding:12px 0}.group summary{cursor:pointer;font-weight:740}.group-count{color:var(--muted);font-weight:500;margin-inline-start:.35em}.group-body{margin:8px 0 1px;padding-left:14px}.group-body>a{font-size:.9rem}.files{list-style:none;margin:7px 0 0;padding:0}.file{display:grid;grid-template-columns:62px minmax(0,1fr) 116px;gap:10px;align-items:start;padding:8px 0;border-top:1px solid #e8eef1}.file .badge{justify-self:start}.file-link{color:var(--ink);font-weight:600;overflow-wrap:anywhere}.file time{text-align:right;color:var(--muted);font-size:.88rem}.hint{display:block;color:#725018;font-size:.86rem}.empty{padding-block:12px}
+@media(max-width:760px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.controls{grid-template-columns:1fr 1fr}.field:first-child{grid-column:1/-1}}
+@media(max-width:470px){.wrap{width:calc(100% - 28px)}.cards{grid-template-columns:1fr}.panel{padding:15px}.intro{padding-block:25px}.file{grid-template-columns:52px minmax(0,1fr);gap:4px 7px}.file time{grid-column:2;text-align:left}}
+</style>
+</head>
+<body>
+<header class="hero"><div class="wrap">
+<div class="top"><span class="brand">NAVOLTA</span><span>Elektroplanung</span></div>
+<div class="intro"><p class="project">Cleverfit Basel</p><h1>Projektunterlagen</h1><p>Planungsgrundlagen für die Elektro-Ausführungspläne</p>
+<div class="actions">
+<button class="primary" id="importButton" type="button">Dateiindex öffnen</button>
+<input id="importFile" class="sr-only" type="file" accept=".json,application/json" tabindex="-1" aria-label="Dateiindex auswählen">
+<a class="button secondary" id="sourceLink" hidden target="_blank" rel="noopener noreferrer">Projektordner in SharePoint</a>
+</div><p class="importStatus" id="importStatus" role="status"></p></div>
+</div></header>
+<main class="wrap">
+<section class="panel starter" id="starter"><h2>Dateiindex auswählen</h2><p>Öffne den zugehörigen JSON-Dateiindex über die Schaltfläche oben. Danach kannst du die Unterlagen suchen und direkt in SharePoint öffnen.</p><p class="muted">Für die Originaldateien gelten die bestehenden Microsoft-365-Berechtigungen.</p></section>
+<section class="panel" id="featured" hidden><h2>Grundlagen für die Ausführungsplanung</h2><p class="muted">Die verlinkten Unterlagen vor Verwendung auf Planstand und Freigabe prüfen.</p><div id="cards" class="cards"></div></section>
+<section class="panel" id="listing" hidden><h2>Dokumentenverzeichnis</h2>
+<div class="controls">
+<label class="field">Dateiname, Ordner oder Format<input type="search" id="query" placeholder="z. B. DWG oder Apparateplan"></label>
+<label class="field">Ordner<select id="folder"><option value="">Alle Ordner</option></select></label>
+<label class="field">Ansicht<select id="scope"><option value="planning">Elektro-Ausführungsplanung</option><option value="all">Alle Projektunterlagen</option><option value="review">Projektbezug prüfen</option></select></label>
+</div>
+<div class="toolbar"><p id="results" aria-live="polite"></p><button id="export" type="button">Planer-Dateiindex herunterladen</button></div>
+<div id="groups"></div></section>
+</main>
+<script>
+"use strict";
+const byId = id => document.getElementById(id);
+const state = { index: null };
+const dateFormat = new Intl.DateTimeFormat("de-CH", {dateStyle:"medium",timeZone:"UTC"});
+const collator = new Intl.Collator("de-CH",{numeric:true,sensitivity:"base"});
+const formatDate = date => /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(date) && Number.isFinite(Date.parse(date)) ? dateFormat.format(new Date(date)) : "–";
+const normalized = value => value.normalize("NFD").replace(/\p{Diacritic}/gu,"").toLowerCase();
+function node(tag, text, className) {
+ const element = document.createElement(tag);
+ if (text) element.textContent = text;
+ if (className) element.className = className;
+ return element;
+}
+function checkedUrl(value) {
+ const url = new URL(value);
+ if (url.protocol !== "https:" || !url.hostname.endsWith(".sharepoint.com") || url.username || url.password) throw Error("SharePoint-Link erwartet");
+ return url.href;
+}
+function parseIndex(value) {
+ if (value?.version !== 1 || value.project !== "Cleverfit Basel" || !Array.isArray(value.folders) || value.folders.length > 100) throw Error("Falsches Dateiindex-Format");
+ const folderIds = new Set();
+ const folders = value.folders.map(folder => {
+   if (typeof folder.id !== "string" || folderIds.has(folder.id) || typeof folder.name !== "string" || !Array.isArray(folder.documents)) throw Error("Ungültiger Ordner");
+   folderIds.add(folder.id);
+   const documents = folder.documents.map(doc => {
+     if (typeof doc.name !== "string" || typeof doc.type !== "string") throw Error("Ungültiges Dokument");
+     return {name:doc.name, type:doc.type, url:checkedUrl(doc.url), date:typeof doc.date === "string" ? doc.date : "",
+       review:doc.review === true, planning:doc.planning === true, feature:typeof doc.feature === "string" ? doc.feature : "",
+       order:Number.isInteger(doc.order) ? doc.order : 999};
+   });
+   return {id:folder.id,name:folder.name,url:checkedUrl(folder.url),documents};
+ });
+ return {version:1,project:value.project,updated:typeof value.updated === "string" ? value.updated : "",source:checkedUrl(value.source),folders};
+}
+function link(label, url, className) {
+ const a = node("a",label,className);
+ a.href = url;
+ a.target = "_blank";
+ a.rel = "noopener noreferrer";
+ return a;
+}
+function render() {
+ const terms = normalized(byId("query").value.trim()).split(/\s+/).filter(Boolean);
+ const selected = byId("folder").value;
+ const scope = byId("scope").value;
+ const out = byId("groups");
+ out.replaceChildren();
+ let total = 0;
+ let shown = 0;
+ for (const folder of state.index.folders) {
+   if (selected && folder.id !== selected) continue;
+   const docs = folder.documents.filter(doc => {
+     const search = normalized([doc.name,doc.type,doc.feature,folder.name].join(" "));
+     return (scope === "all" || (scope === "planning" && doc.planning) || (scope === "review" && doc.review)) && terms.every(term => search.includes(term));
+   }).sort((a,b) => collator.compare(a.name,b.name));
+   if (!docs.length && !(scope === "all" && !terms.length)) continue;
+   shown++;
+   total += docs.length;
+   const details = node("details","","group");
+   details.open = docs.length > 0;
+   const summary = node("summary",folder.name);
+   summary.append(node("span",`(${docs.length})`,"group-count"));
+   const body = node("div","","group-body");
+   body.append(link("Ordner in SharePoint öffnen",folder.url));
+   const list = node("ul","","files");
+   for (const doc of docs) {
+     const item = node("li","","file");
+     const name = node("div");
+     name.append(link(doc.name,doc.url,"file-link"));
+     if (doc.review) name.append(node("span","Zuordnung zu Basel vor Verwendung prüfen.","hint"));
+     item.append(node("span",doc.type,"badge"),name,node("time",formatDate(doc.date)));
+     list.append(item);
+   }
+   body.append(list);
+   details.append(summary,body);
+   out.append(details);
+ }
+ if (!shown) out.append(node("p","Keine Unterlagen für diese Auswahl.","muted empty"));
+ byId("results").textContent = `${total} ${total === 1 ? "Datei" : "Dateien"} · ${shown} Ordner`;
+}
+function loadIndex(index) {
+ state.index = index;
+ const documents = index.folders.flatMap(folder => folder.documents);
+ byId("sourceLink").href = index.source;
+ byId("sourceLink").hidden = false;
+ byId("starter").hidden = true;
+ byId("listing").hidden = false;
+ byId("importStatus").textContent = `Dateiindex vom ${formatDate(index.updated)} · ${documents.length} Dateien · ${index.folders.length} Ordner`;
+ const cards = byId("cards");
+ cards.replaceChildren();
+ for (const doc of documents.filter(doc => doc.feature && doc.planning).sort((a,b) => a.order-b.order)) {
+   const card = link("",doc.url,"card");
+   card.append(node("span",doc.type,"badge"),node("span",doc.feature));
+   cards.append(card);
+ }
+ byId("featured").hidden = !cards.childElementCount;
+ const options = byId("folder");
+ options.replaceChildren(new Option("Alle Ordner",""));
+ for (const folder of index.folders) options.append(new Option(folder.name,folder.id));
+ byId("scope").value = "planning";
+ byId("query").value = "";
+ byId("export").hidden = !documents.some(doc => doc.planning);
+ render();
+}
+byId("importButton").addEventListener("click",() => byId("importFile").click());
+byId("importFile").addEventListener("change",async event => {
+ const file = event.target.files[0];
+ if (!file) return;
+ try {
+   if (file.size > 2_000_000) throw Error("Datei zu gross");
+   const index = parseIndex(JSON.parse(await file.text()));
+   loadIndex(index);
+ } catch {
+   byId("importStatus").textContent = "Dateiindex konnte nicht geöffnet werden. Bitte den Cleverfit-JSON-Dateiindex auswählen.";
+ } finally {
+   event.target.value = "";
+ }
+});
+for (const id of ["query","folder","scope"]) byId(id).addEventListener(id === "query" ? "input" : "change",render);
+byId("export").addEventListener("click",() => {
+ const folders = state.index.folders.map(folder => ({...folder,documents:folder.documents.filter(doc => doc.planning)})).filter(folder => folder.documents.length);
+ const blob = new Blob([JSON.stringify({...state.index,folders},null,2)],{type:"application/json"});
+ const url = URL.createObjectURL(blob);
+ const download = node("a");
+ download.href = url;
+ download.download = "Cleverfit_Elektroplaner_Dateiindex.json";
+ document.body.append(download);
+ download.click();
+ download.remove();
+ setTimeout(() => URL.revokeObjectURL(url),1000);
+});
+</script>
+</body>
+</html>
